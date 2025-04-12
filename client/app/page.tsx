@@ -2,8 +2,9 @@ import React from 'react'
 
 function page() {
   return (
-    <div className='card'>
-      <h1>Chigga</h1>
+    <div className='p-10'>
+      <h1>Hello World</h1>
+      <button className='btn'> Button </button>
     </div>
   )
 }

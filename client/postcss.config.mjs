@@ -1,7 +1,6 @@
 const config = {
   plugins: {
-    '@daisyui/postcss': {}
-    ["@tailwindcss/postcss"]
+    ["@tailwindcss/postcss"]: {},
   }
 };
 
