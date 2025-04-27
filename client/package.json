@@ -26,6 +26,6 @@
     "lucide-react": "^0.487.0",
     "shadcn": "^2.4.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "5.8.3"
   }
 }
