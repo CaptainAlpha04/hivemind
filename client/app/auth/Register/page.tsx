@@ -3,23 +3,45 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
-export default function LoginPage() {
+export default function SignupPage() {
+  const [name, setName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [passwordMatch, setPasswordMatch] = useState(true);
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    if (confirmPassword) {
+      setPasswordMatch(e.target.value === confirmPassword);
+    }
+  };
+
+  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setConfirmPassword(e.target.value);
+    setPasswordMatch(password === e.target.value);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      setPasswordMatch(false);
+      return;
+    }
+    
     setIsLoading(true);
-    // Here you would typically make an API call to your authentication endpoint
+    // Here you would typically make an API call to your registration endpoint
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Login attempt with:', { email, password, rememberMe });
+      console.log('Signup attempt with:', { name, dateOfBirth, email, password, agreeToTerms });
       // Redirect on success or handle the response
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Signup failed:', error);
     } finally {
       setIsLoading(false);
     }
@@ -30,7 +52,7 @@ export default function LoginPage() {
       {/* Improved Header with glass effect */}
       <header className="w-full py-4 px-6 flex items-center justify-between z-20 backdrop-blur-sm bg-slate-900/30">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10   rounded-xl flex items-center justify-center shadow-lg  overflow-hidden">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
             <Image src="/Hivemind-removebg-preview.png" alt="HiveMind Logo" width={32} height={32} className="object-contain w-8 h-8" />
           </div>
           <span className="text-white font-semibold text-xl tracking-wide">HiveMind</span>
@@ -43,7 +65,7 @@ export default function LoginPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-4">
+      <main className="flex-1 flex items-center justify-center px-4 py-12">
         {/* Modern Blur Gradient Elements */}
         <div className="absolute inset-0 overflow-hidden">
           {/* Large gradient blobs */}
@@ -56,15 +78,14 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
 
         {/* App Title - Clean and Modern */}
-        <div className="absolute top-28 left-0 right-0 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-300 to-cyan-400 tracking-tight mb-40">
-            Welcome to HiveMind
+        <div className="absolute top-24 left-0 right-0 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-300 to-cyan-400 tracking-tight">
+            Create Your Account
           </h1>
-         
         </div>
 
-        {/* Login Card - Modernized */}
-        <div className="w-full max-w-md z-10 mt-20">
+        {/* Signup Card - Modernized */}
+        <div className="w-full max-w-md z-10 mt-24">
           <div className="glass-card">
             <div className="p-8 relative">
               {/* Small decorative elements */}
@@ -72,20 +93,66 @@ export default function LoginPage() {
               <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-teal-400/10 to-cyan-400/10 rounded-tr-full -z-10"></div>
               
               <h2 className="text-2xl font-semibold text-white mb-2">
-                Sign in
+                Sign Up
               </h2>
               
               <p className="mb-6 text-slate-300 text-sm">
-                New to HiveMind?{' '}
-                <Link href="/auth/Register" className="text-teal-400 hover:text-teal-300 font-medium transition-colors">
-                  Create an account
+                Already have an account?{' '}
+                <Link href="/auth/Login" className="text-teal-400 hover:text-teal-300 font-medium transition-colors">
+                  Sign in
                 </Link>
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Full Name */}
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-slate-200 mb-1.5">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <input
+                      id="name"
+                      type="text"
+                      required
+                      className="modern-input pl-10"
+                      placeholder="John Doe"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Date of Birth */}
+                <div>
+                  <label htmlFor="dateOfBirth" className="block text-sm font-medium text-slate-200 mb-1.5">
+                    Date of Birth
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <input
+                      id="dateOfBirth"
+                      type="date"
+                      required
+                      className="modern-input pl-10 text-slate-300"
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Email */}
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-slate-200 mb-1.5">
-                    Email address
+                    Email Address
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -98,22 +165,18 @@ export default function LoginPage() {
                       type="email"
                       required
                       className="modern-input pl-10"
-                      placeholder="faseehcangotohell@gmail.com"
+                      placeholder="you@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
                   </div>
                 </div>
 
+                {/* Password */}
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label htmlFor="password" className="block text-sm font-medium text-slate-200">
-                      Password
-                    </label>
-                    <Link href="/auth/forgot-password" className="text-xs font-medium text-teal-400 hover:text-teal-300 transition-colors">
-                      Forgot password?
-                    </Link>
-                  </div>
+                  <label htmlFor="password" className="block text-sm font-medium text-slate-200 mb-1.5">
+                    Password
+                  </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -127,37 +190,70 @@ export default function LoginPage() {
                       className="modern-input pl-10"
                       placeholder="••••••••"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={handlePasswordChange}
                     />
                   </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Password must be at least 8 characters long
+                  </p>
                 </div>
 
-                <div className="flex items-center">
+                {/* Confirm Password */}
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-200 mb-1.5">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </div>
+                    <input
+                      id="confirmPassword"
+                      type="password"
+                      required
+                      className={`modern-input pl-10 ${!passwordMatch && confirmPassword ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={handleConfirmPasswordChange}
+                    />
+                  </div>
+                  {!passwordMatch && confirmPassword && (
+                    <p className="text-xs text-red-400 mt-1">
+                      Passwords do not match
+                    </p>
+                  )}
+                </div>
+
+                {/* Terms and Conditions */}
+                <div className="flex items-center mt-4">
                   <div className="modern-checkbox">
                     <input
-                      id="remember-me"
+                      id="agree-terms"
                       type="checkbox"
                       className="sr-only"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
+                      checked={agreeToTerms}
+                      onChange={(e) => setAgreeToTerms(e.target.checked)}
+                      required
                     />
-                    <div className={`w-5 h-5 rounded border transition-colors duration-200 flex items-center justify-center ${rememberMe ? 'bg-teal-500 border-teal-500' : 'border-slate-500 bg-slate-800/50'}`}>
-                      {rememberMe && (
+                    <div className={`w-5 h-5 rounded border transition-colors duration-200 flex items-center justify-center ${agreeToTerms ? 'bg-teal-500 border-teal-500' : 'border-slate-500 bg-slate-800/50'}`}>
+                      {agreeToTerms && (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-white" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
                     </div>
                   </div>
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-300 select-none cursor-pointer">
-                    Remember me for 30 days
+                  <label htmlFor="agree-terms" className="ml-2 block text-sm text-slate-300 select-none cursor-pointer">
+                    I agree to the <Link href="/terms" className="text-teal-400 hover:text-teal-300">Terms of Service</Link> and <Link href="/privacy" className="text-teal-400 hover:text-teal-300">Privacy Policy</Link>
                   </label>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="modern-button"
+                  disabled={isLoading || !passwordMatch}
+                  className="modern-button mt-6"
                 >
                   {isLoading ? (
                     <div className="flex items-center justify-center">
@@ -165,10 +261,10 @@ export default function LoginPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      <span>Signing in...</span>
+                      <span>Creating account...</span>
                     </div>
                   ) : (
-                    <span>Sign in</span>
+                    <span>Create account</span>
                   )}
                 </button>
               </form>
@@ -220,7 +316,6 @@ export default function LoginPage() {
           </div>
         </div>
       </footer>
-
     </div>
   );
 }

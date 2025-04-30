@@ -6,3 +6,115 @@
   themes:  --default, light, night --prefersdark;
 }
 
+  .bg-grid-pattern {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  }
+  
+  .glass-card {
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2), 
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    position: relative;
+  }
+  
+  .glass-card:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, 
+      rgba(56, 189, 248, 0), 
+      rgba(56, 189, 248, 0.3), 
+      rgba(14, 165, 233, 0.3), 
+      rgba(56, 189, 248, 0));
+  }
+  
+  .modern-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 8px;
+    color: white;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(12px);
+  }
+  
+  .modern-input:focus {
+    outline: none;
+    border-color: #5eead4;
+    box-shadow: 0 0 0 2px rgba(94, 234, 212, 0.25);
+    background: rgba(30, 41, 59, 0.5);
+  }
+  
+  .modern-input::placeholder {
+    color: #64748b;
+  }
+  
+  .modern-button {
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(90deg, #0d9488, #0891b2);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+  }
+  
+  .modern-button:hover {
+    background: linear-gradient(90deg, #0f766e, #0e7490);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.4);
+  }
+  
+  .modern-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(94, 234, 212, 0.5);
+  }
+  
+  .modern-button:active {
+    transform: translateY(1px);
+  }
+  
+  .modern-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  .modern-checkbox {
+    position: relative;
+    cursor: pointer;
+  }
+  
+  .social-button {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.6rem 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.5);
+    color: white;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+  }
+  
+  .social-button:hover {
+    background: rgba(51, 65, 85, 0.5);
+    border-color: rgba(148, 163, 184, 0.3);
+  }
+  
