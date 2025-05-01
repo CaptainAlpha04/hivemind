@@ -20,7 +20,7 @@ class Actor {
     });
 
     // Method to send a message to the chat model and receive a response
-    async chat(userID, message) {
+    async chat(userID, agent, message) {
         const response = await this.modelChat.sendMessage({
             message: message,
             context: process.env.chat_context, // Optional context for specifying the type of content provided to the model
