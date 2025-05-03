@@ -1,8 +1,9 @@
-"use client";
+'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect } from 'react';
+import Header from '../components/Header';
 
 const HomePage = () => {
   useEffect(() => {
@@ -28,21 +29,10 @@ const HomePage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-teal-900 relative overflow-hidden">
+      
       {/* Header - Unified with Login/Register */}
-      <header className="w-full py-4 px-6 flex items-center justify-between z-20 backdrop-blur-sm bg-slate-900/30">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
-            <Image src="/Hivemind-removebg-preview.png" alt="HiveMind Logo" width={32} height={32} className="object-contain w-8 h-8" />
-          </div>
-          <span className="text-white font-semibold text-xl tracking-wide">HiveMind</span>
-        </div>
-        <nav className="hidden md:flex space-x-8">
-          <Link href="/Home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Home</Link>
-          <Link href="/About" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">About</Link>
-          <Link href="/Contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Contact</Link>
-        </nav>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <main className="flex-1 w-full relative">
