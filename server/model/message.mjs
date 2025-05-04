@@ -14,10 +14,12 @@ const messageSchema = new mongoose.Schema({
     },
     content: { // Text content of the message
         type: String,
-        // Not strictly required if mediaUrl can exist alone
+        // Not strictly required if image exists
     },
-    mediaUrl: { // URL for image/video etc.
-        type: String
+    // Replace mediaUrl with image field for BLOB storage
+    image: {
+        data: Buffer, // Store image data as Buffer (BLOB)
+        contentType: String // Store MIME type (e.g., 'image/jpeg', 'image/png')
     },
     readBy: [{ // Optional: Track who read the message
         type: mongoose.Schema.Types.ObjectId,

@@ -39,11 +39,11 @@ const postSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    // Image field omitted for now as requested
-    // image: {
-    //     data: Buffer, // Store image data as Buffer (BLOB)
-    //     contentType: String // Store MIME type
-    // },
+    // Add image field back for BLOB storage
+    image: {
+        data: Buffer, // Store image data as Buffer (BLOB)
+        contentType: String // Store MIME type
+    },
     likes: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
