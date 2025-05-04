@@ -30,6 +30,16 @@ class Actor {
         return response.text;
     }
 
+    async analyzePost(userID, agent, post) {
+        const response = await this.modelChat.sendMessage({
+            message: post,
+            context: process.env.post_context, // Optional context for specifying the type of content provided to the model
+        })
+
+        console.log('Response:', response.text);
+        return response.text;
+    }
+
 }
 
 export default Actor;
