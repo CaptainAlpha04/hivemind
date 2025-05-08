@@ -11,8 +11,9 @@ const conversationSchema = new mongoose.Schema({
         messageId: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
         senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         senderUsername: { type: String }, // Denormalized username for efficiency
-        content: { type: String }, // Store actual content or "Media" indicator
-        mediaUrl: { type: String }, // Store mediaUrl if present
+        content: { type: String }, // Store actual content or "Image" indicator
+        // Remove mediaUrl, add a flag to indicate if the last message was an image
+        hasImage: { type: Boolean, default: false },
         createdAt: { type: Date } // Timestamp of the last message
     },
     // Remove lastMessageAt if lastMessage.createdAt replaces its purpose for sorting
