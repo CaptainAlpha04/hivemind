@@ -14,6 +14,11 @@ const commentSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    // Add likes array to comments
+    likes: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
     createdAt: {
         type: Date,
         default: Date.now
@@ -39,11 +44,11 @@ const postSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    // Image field omitted for now as requested
-    // image: {
-    //     data: Buffer, // Store image data as Buffer (BLOB)
-    //     contentType: String // Store MIME type
-    // },
+    // Add image field back for BLOB storage
+    image: {
+        data: Buffer, // Store image data as Buffer (BLOB)
+        contentType: String // Store MIME type
+    },
     likes: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
