@@ -14,6 +14,11 @@ const commentSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    // Add likes array to comments
+    likes: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
     createdAt: {
         type: Date,
         default: Date.now

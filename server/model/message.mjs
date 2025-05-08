@@ -21,6 +21,12 @@ const messageSchema = new mongoose.Schema({
         data: Buffer, // Store image data as Buffer (BLOB)
         contentType: String // Store MIME type (e.g., 'image/jpeg', 'image/png')
     },
+    // Add optional field for replying to a specific message
+    replyToMessageId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Message',
+        required: false // Make it optional
+    },
     readBy: [{ // Optional: Track who read the message
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'

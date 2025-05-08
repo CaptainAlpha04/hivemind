@@ -19,8 +19,7 @@ const fileFilter = (req, file, cb) => {
 };
 const upload = multer({ storage: storage, fileFilter: fileFilter });
 
-// POST /api/messages - Send a new message (handles text and image)
-// Use upload.single('image') middleware
+// POST /api/messages - Send a new message (handles text, image, and reply)
 router.post('/', upload.single('image'), async (req, res) => {
     const session = req.auth;
     const userIdString = session?.user?.id ?? session?.user?.sub;
@@ -34,7 +33,8 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
     const senderId = new mongoose.Types.ObjectId(userIdString);
 
-    const { conversationId, content } = req.body; // Get content from body
+    // Include replyToMessageId from request body
+    const { conversationId, content, replyToMessageId } = req.body; // Get content from body
     const imageFile = req.file; // Get file from req.file added by multer
 
     // Validate required fields: conversationId and EITHER content OR an image file
@@ -44,6 +44,11 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
         return res.status(400).json({ message: 'Invalid conversation ID format' });
+    }
+
+    // Validate replyToMessageId if provided
+    if (replyToMessageId && !mongoose.Types.ObjectId.isValid(replyToMessageId)) {
+        return res.status(400).json({ message: 'Invalid replyToMessageId format' });
     }
 
     try {
@@ -77,6 +82,19 @@ router.post('/', upload.single('image'), async (req, res) => {
                 data: imageFile.buffer,
                 contentType: imageFile.mimetype
             };
+        }
+
+        // Add replyToMessageId if provided and valid
+        if (replyToMessageId) {
+            // Optional: Verify the message being replied to exists and is in the same conversation
+            const repliedMessage = await Message.findOne({
+                _id: new mongoose.Types.ObjectId(replyToMessageId),
+                conversationId: conversation._id
+            });
+            if (!repliedMessage) {
+                return res.status(404).json({ message: 'Message being replied to not found in this conversation.' });
+            }
+            messageData.replyToMessageId = repliedMessage._id;
         }
 
         // 4. Create and save the new message

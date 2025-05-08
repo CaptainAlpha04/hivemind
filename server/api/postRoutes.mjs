@@ -179,6 +179,12 @@ router.post('/:postId/comment', async (req, res) => {
     }
 
     try {
+        // Fetch user to get username for denormalization
+        const user = await User.findById(userId).select('username').lean();
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
         const post = await Post.findById(postId);
 
         if (!post) {
@@ -187,21 +193,78 @@ router.post('/:postId/comment', async (req, res) => {
 
         const newComment = {
             userId: userId,
+            username: user.username, // Add username
             text: text.trim(),
+            likes: [], // Initialize likes array
             createdAt: new Date()
         };
 
         post.comments.push(newComment);
         await post.save();
 
-        // Return the updated post or just the new comment
-        // Returning the last comment added (which is the new one)
+        // Return the newly added comment (which is the last one in the array)
         const addedComment = post.comments[post.comments.length - 1];
 
         return res.status(201).json(addedComment);
 
     } catch (error) {
         console.error('Failed to add comment:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// POST /api/posts/:postId/comments/:commentId/like - Like/Unlike a comment
+router.post('/:postId/comments/:commentId/like', async (req, res) => {
+    const session = req.auth;
+    const userIdString = session?.user?.id ?? session?.user?.sub;
+
+    if (!session || !userIdString) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userIdString)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    const userId = new mongoose.Types.ObjectId(userIdString);
+
+    const { postId, commentId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(postId) || !mongoose.Types.ObjectId.isValid(commentId)) {
+        return res.status(400).json({ message: 'Invalid post or comment ID format' });
+    }
+
+    try {
+        const post = await Post.findById(postId);
+
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        // Find the specific comment within the post's comments array
+        const comment = post.comments.id(commentId);
+
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        // Check if user already liked the comment
+        const likeIndex = comment.likes.findIndex(likeId => likeId.equals(userId));
+
+        if (likeIndex > -1) {
+            // User already liked, so unlike
+            comment.likes.splice(likeIndex, 1);
+        } else {
+            // User hasn't liked, so like
+            comment.likes.push(userId);
+        }
+
+        await post.save();
+
+        // Return the updated comment
+        return res.status(200).json(comment);
+
+    } catch (error) {
+        console.error('Failed to like/unlike comment:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 });
