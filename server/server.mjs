@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose'; // Import Mongoose
 import { Auth } from "@auth/express";
-import { authConfig } from './auth.config.mjs'; // Ensure this path is correct
+// import { authConfig } from './auth.config.mjs'; // Ensure this path is correct
 import chatRoutes from './api/getChat.mjs'; // Ensure this path is correct
 import messageRoutes from './api/messageRoutes.mjs'; // Import the new message routes
 import postRoutes from './api/postRoutes.mjs'; // Import the new post routes

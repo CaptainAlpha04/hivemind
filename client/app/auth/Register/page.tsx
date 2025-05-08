@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import Header from '@/components/Header';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -50,20 +50,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900 relative overflow-hidden">
       {/* Improved Header with glass effect */}
-      <header className="w-full py-4 px-6 flex items-center justify-between z-20 backdrop-blur-sm bg-slate-900/30">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
-            <Image src="/Hivemind-removebg-preview.png" alt="HiveMind Logo" width={32} height={32} className="object-contain w-8 h-8" />
-          </div>
-          <span className="text-white font-semibold text-xl tracking-wide">HiveMind</span>
-        </div>
-        <nav className="hidden md:flex space-x-8">
-          <Link href="/Home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Home</Link>
-          <Link href="/About" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">About</Link>
-          <Link href="/Contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Contact</Link>
-        </nav>
-      </header>
-
+      <Header />
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         {/* Modern Blur Gradient Elements */}
@@ -76,13 +63,6 @@ export default function SignupPage() {
 
         {/* Subtle grid overlay */}
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
-
-        {/* App Title - Clean and Modern */}
-        <div className="absolute top-24 left-0 right-0 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-300 to-cyan-400 tracking-tight">
-            Create Your Account
-          </h1>
-        </div>
 
         {/* Signup Card - Modernized */}
         <div className="w-full max-w-md z-10 mt-24">

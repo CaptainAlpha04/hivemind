@@ -39,7 +39,6 @@ class Actor {
         console.log('Response:', response.text);
         return response.text;
     }
-
 }
 
 export default Actor;

@@ -12,9 +12,9 @@ return (
         <span className="text-base-content font-extralight text-xl tracking-wide">Hive<b className='font-extrabold'>Mind</b></span>
     </div>
     <nav className="hidden md:flex space-x-8">
-        <Link href="/Home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Home</Link>
-        <Link href="/Explore" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Explore</Link>
-        <Link href="/Support" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Support</Link>
+        <Link href="/home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Home</Link>
+        <Link href="/explore" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Explore</Link>
+        <Link href="/support" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Support</Link>
     </nav>
 
     {/* <div className="hidden md:flex space-x-4">

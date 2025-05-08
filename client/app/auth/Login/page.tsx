@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import Header from '@/components/Header';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -28,19 +29,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900 relative overflow-hidden">
       {/* Improved Header with glass effect */}
-      <header className="w-full py-4 px-6 flex items-center justify-between z-20 backdrop-blur-sm bg-slate-900/30">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10   rounded-xl flex items-center justify-center shadow-lg  overflow-hidden">
-            <Image src="/Hivemind-removebg-preview.png" alt="HiveMind Logo" width={32} height={32} className="object-contain w-8 h-8" />
-          </div>
-          <span className="text-white font-semibold text-xl tracking-wide">HiveMind</span>
-        </div>
-        <nav className="hidden md:flex space-x-8">
-          <Link href="/Home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Home</Link>
-          <Link href="/About" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">About</Link>
-          <Link href="/Contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Contact</Link>
-        </nav>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4">
@@ -54,14 +43,6 @@ export default function LoginPage() {
 
         {/* Subtle grid overlay */}
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
-
-        {/* App Title - Clean and Modern */}
-        <div className="absolute top-28 left-0 right-0 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-300 to-cyan-400 tracking-tight mb-40">
-            Welcome to HiveMind
-          </h1>
-         
-        </div>
 
         {/* Login Card - Modernized */}
         <div className="w-full max-w-md z-10 mt-20">
@@ -77,7 +58,7 @@ export default function LoginPage() {
               
               <p className="mb-6 text-slate-300 text-sm">
                 New to HiveMind?{' '}
-                <Link href="/auth/Register" className="text-teal-400 hover:text-teal-300 font-medium transition-colors">
+                <Link href="/auth/register" className="text-teal-400 hover:text-teal-300 font-medium transition-colors">
                   Create an account
                 </Link>
               </p>
@@ -87,22 +68,17 @@ export default function LoginPage() {
                   <label htmlFor="email" className="block text-sm font-medium text-slate-200 mb-1.5">
                     Email address
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                      </svg>
-                    </div>
+                  <label className="input validator input-lg w-full">
+                    <i className='fi fi-br-at text-sm text-gray-500'></i>
                     <input
-                      id="email"
                       type="email"
                       required
-                      className="modern-input pl-10"
-                      placeholder="faseehcangotohell@gmail.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Email address"
+                      className='text-sm'
+                      pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                      title="Invalid email format"
                     />
-                  </div>
+                  </label>
                 </div>
 
                 <div>
@@ -114,22 +90,22 @@ export default function LoginPage() {
                       Forgot password?
                     </Link>
                   </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
+
+                  <label className="input validator input-lg w-full">
+                    <i className='fi fi-br-lock text-sm text-gray-500'></i>
                     <input
-                      id="password"
                       type="password"
                       required
-                      className="modern-input pl-10"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
+                      className='text-sm'
+                      pattern="[A-Za-z][A-Za-z0-9\-]*"
+                      title="Only letters, numbers or dash"
                     />
-                  </div>
+                  </label>
+                  <p className="validator-hint">
+                    Must be 3 to 30 characters
+                    <br />containing only letters, numbers or dash
+                  </p>
                 </div>
 
                 <div className="flex items-center">
