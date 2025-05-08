@@ -24,6 +24,7 @@ return (
         <button>
             <Link href="/Home" className="text-teal-200 transition-colors duration-300 font-medium bg-teal-900/70 hover:backdrop-blur-md px-8 py-3 rounded-full hover:bg-teal-900 hover:text-teal-200">Sign up</Link>
         </button>
+        //
     </div> */}
 </header>
 
