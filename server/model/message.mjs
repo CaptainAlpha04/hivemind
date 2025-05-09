@@ -27,6 +27,18 @@ const messageSchema = new mongoose.Schema({
         ref: 'Message',
         required: false // Make it optional
     },
+    // Add reactions field
+    reactions: [{
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        },
+        emoji: {
+            type: String,
+            required: true
+        }
+    }],
     readBy: [{ // Optional: Track who read the message
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
