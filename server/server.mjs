@@ -4,9 +4,12 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose'; // Import Mongoose
 import { Auth } from "@auth/express";
 import { authConfig } from './auth.config.mjs'; // Ensure this path is correct
-import chatRoutes from './api/getChat.mjs'; // Ensure this path is correct
-import messageRoutes from './api/messageRoutes.mjs'; // Import the new message routes
 import postRoutes from './api/postRoutes.mjs'; // Import the new post routes
+import userRoutes from './api/userRoutes.mjs'; // New import for user routes
+import chatRoutes from './api/chatRoutes.mjs'; // New import for consolidated chat routes
+import recommendationRoutes from './api/recommendationRoutes.mjs'; // Import recommendation routes
+import botRoutes from './api/botRoutes.mjs'; // Add import for bot routes
+import { verifyConnectivity } from './config/neo4jConfig.mjs'; // Import Neo4j connection verifier
 
 // Importing the routes
 import actorRoute from './agent/routes/actorRoutes.mjs';
@@ -40,6 +43,13 @@ mongoose.connection.on('disconnected', () => {
 });
 // --- End Mongoose Connection Setup ---
 
+// Verify Neo4j connectivity
+verifyConnectivity()
+  .catch(error => {
+    console.error('Neo4j connection issue:', error);
+    console.warn('Server starting without Neo4j connection. Recommendation features may not work correctly.');
+  });
+
 // Initializing the middleware
 app.use(cors());
 app.use(express.json());
@@ -52,9 +62,11 @@ app.get('/', async (req, res) => {
 
 // Using the routes
 actorRoute(app);
-app.use('/api', chatRoutes); // Mounts the chat routes under /api
-app.use('/api/messages', messageRoutes); // Mount the message routes under /api/messages
 app.use('/api/posts', postRoutes); // Mount the post routes under /api/posts
+app.use('/api/users', userRoutes); // Mount user routes
+app.use('/api/chats', chatRoutes); // Mount consolidated chat routes
+app.use('/api/recommendations', recommendationRoutes); // Mount recommendation routes
+app.use('/api/bots', botRoutes); // Mount the bot routes
 
 // Starting the server
 app.listen(port, () => {

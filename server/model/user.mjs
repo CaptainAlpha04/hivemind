@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import neo4jService from '../services/neo4jService.mjs';
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -34,8 +35,36 @@ const userSchema = new mongoose.Schema({
     }],
     // Optional denormalized counts
     followersCount: { type: Number, default: 0 },
-    followingCount: { type: Number, default: 0 }
+    followingCount: { type: Number, default: 0 },
+    
+    // Add following array to track who the user follows
+    following: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+
+    // Add settings object
+    settings: {
+        receiveEmailNotifications: { type: Boolean, default: true },
+        theme: { type: String, default: 'light' }
+        // Add other settings as needed
+    },
+
+    // Add blockedUserIds array
+    blockedUserIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 }, { timestamps: true });
+
+// Middleware to sync user data to Neo4j after save
+userSchema.post('save', async function(doc) {
+    try {
+        await neo4jService.syncUser(doc);
+    } catch (error) {
+        console.error('Error syncing user to Neo4j:', error);
+    }
+});
 
 // Avoid recompiling the model
 const User = mongoose.models.User || mongoose.model('User', userSchema);

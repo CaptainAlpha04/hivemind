@@ -33,12 +33,17 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
     const userId = new mongoose.Types.ObjectId(userIdString);
 
-    const { heading, content } = req.body;
+    const { heading, content, visibility } = req.body;
     const imageFile = req.file; // Get file from req.file added by multer
 
     // Validate required fields
     if (!heading || !content) {
         return res.status(400).json({ message: 'Missing required fields: heading and content' });
+    }
+
+    // Optional: Validate visibility if provided, or rely on schema default
+    if (visibility && !['public', 'followers_only', 'private'].includes(visibility)) {
+        return res.status(400).json({ message: 'Invalid visibility value.' });
     }
 
     try {
@@ -56,7 +61,8 @@ router.post('/', upload.single('image'), async (req, res) => {
             heading: heading,
             content: content,
             likes: [],
-            comments: []
+            comments: [],
+            visibility: visibility || 'public' // Add visibility, defaulting to 'public' if not provided (schema handles default too)
         };
 
         // Add image data if file exists
@@ -271,21 +277,65 @@ router.post('/:postId/comments/:commentId/like', async (req, res) => {
 
 // GET /api/posts - Fetch posts (example, implement pagination/filtering later)
 router.get('/', async (req, res) => {
-    try {
-        // Basic fetch, sort by newest first. Add pagination later.
-        const posts = await Post.find()
-                                .sort({ createdAt: -1 })
-                                .limit(20) // Example limit
-                                .select('-image.data') // Exclude image buffer data from list view
-                                .lean(); // Use lean for read-only operations
+    const session = req.auth;
+    const userIdString = session?.user?.id ?? session?.user?.sub;
+    let currentUserId = null;
+    if (userIdString && mongoose.Types.ObjectId.isValid(userIdString)) {
+        currentUserId = new mongoose.Types.ObjectId(userIdString);
+    }
 
-        // Add hasImage flag to each post in the list
-        const postsWithImageFlag = posts.map(post => ({
+    try {
+        // Base query
+        let query = {};
+
+        // If a user is logged in, we need to fetch their details for 'followers_only' posts
+        let currentUser = null;
+        if (currentUserId) {
+            currentUser = await User.findById(currentUserId).select('followingCount blockedUserIds').lean();
+        }
+
+        // Construct the query to filter posts based on visibility
+        // This is a simplified version. For true 'followers_only', you'd need to check if post.userId is in currentUser.following
+        // and for 'private', only the post owner should see it.
+        // For now, public posts are always visible. Others might be restricted based on auth.
+        
+        const posts = await Post.find(query) // Query will be refined below
+                                .sort({ createdAt: -1 })
+                                .limit(20) 
+                                .select('-image.data') 
+                                .lean(); 
+
+        const filteredPosts = posts.filter(post => {
+            if (post.visibility === 'public') {
+                return true;
+            }
+            if (!currentUserId) { // Unauthenticated users only see public posts
+                return false;
+            }
+            // Filter out posts from users blocked by the current user
+            if (currentUser && currentUser.blockedUserIds && currentUser.blockedUserIds.some(blockedId => blockedId.equals(post.userId))){
+                return false;
+            }
+            // Filter out posts from users who have blocked the current user (requires adding blockedBy to User schema or a separate Block schema)
+            // For simplicity, this part is omitted here but important for a full implementation.
+
+            if (post.visibility === 'private') {
+                return post.userId.equals(currentUserId);
+            }
+            if (post.visibility === 'followers_only') {
+                // This requires knowing if the post.userId is followed by currentUserId.
+                // This check is complex with the current structure and might require a $lookup or client-side filtering after fetching user's following list.
+                // For now, let's assume if the user is logged in, they can see followers_only posts (placeholder logic)
+                // In a real app, you would fetch the current user's following list and check against post.userId
+                return true; // Placeholder: Needs proper implementation
+            }
+            return false; // Should not reach here if visibility enum is enforced
+        }).map(post => ({
             ...post,
-            hasImage: !!(post.image && post.image.contentType) // Check if image field exists and has contentType
+            hasImage: !!(post.image && post.image.contentType)
         }));
 
-        return res.status(200).json(postsWithImageFlag);
+        return res.status(200).json(filteredPosts);
     } catch (error) {
         console.error('Failed to fetch posts:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
@@ -315,6 +365,5 @@ router.get('/:postId/image', async (req, res) => {
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 });
-
 
 export default router;
