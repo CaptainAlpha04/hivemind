@@ -12,7 +12,7 @@ import postRoutes from './api/postRoutes.mjs'; // Import the new post routes
 import actorRoute from './agent/routes/actorRoutes.mjs';
 
 // Importing functions from the controller
-import { createNewActor } from './agent/controller/agentController.mjs';
+import { generateActorPersona, generateActorProfileImage } from './agent/controller/agentController.mjs';
 
 dotenv.config();
 
@@ -60,9 +60,7 @@ app.use('/api', chatRoutes); // Mounts the chat routes under /api
 app.use('/api/messages', messageRoutes); // Mount the message routes under /api/messages
 app.use('/api/posts', postRoutes); // Mount the post routes under /api/posts
 
-
-await createNewActor(); // Call the function to create a new actor
-
+await generateActorPersona(); // Call the function to generate an actor persona
 
 // Starting the server
 app.listen(port, () => {
