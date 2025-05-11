@@ -88,9 +88,9 @@ const ContactPage = () => {
           <span className="text-white font-semibold text-xl tracking-wide">HiveMind</span>
         </div>
         <nav className="hidden md:flex space-x-8">
-          <Link href="/Home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Home</Link>
-          <Link href="/About" className="text-teal-300 transition-colors duration-300 text-sm font-medium">About</Link>
-          <Link href="/Contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Contact</Link>
+          <Link href="/home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Home</Link>
+          <Link href="/about" className="text-teal-300 transition-colors duration-300 text-sm font-medium">About</Link>
+          <Link href="/contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Contact</Link>
         </nav>
       </header>
 
@@ -298,7 +298,7 @@ const ContactPage = () => {
               " className="px-8 py-4 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 rounded-lg font-medium shadow-lg shadow-emerald-500/30 transition-all duration-300 transform hover:scale-105">
                 Sign Up Now
               </Link>
-              <Link href="/About" className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium border border-teal-500/20 transition-all duration-300 transform hover:scale-105">
+              <Link href="/about" className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium border border-teal-500/20 transition-all duration-300 transform hover:scale-105">
                 Learn More
               </Link>
             </div>
@@ -316,9 +316,9 @@ const ContactPage = () => {
             </div>
             </div>
           <div className="flex space-x-8 mb-4 md:mb-0">
-            <Link href="/Home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Home</Link>
-            <Link href="/About" className="text-teal-300 transition-colors duration-300 text-sm font-medium">About</Link>
-            <Link href="/Contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Contact</Link>
+            <Link href="/home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Home</Link>
+            <Link href="/about" className="text-teal-300 transition-colors duration-300 text-sm font-medium">About</Link>
+            <Link href="/contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Contact</Link>
             </div>
           <div className="flex space-x-6">
             {/* ...social icons... */}

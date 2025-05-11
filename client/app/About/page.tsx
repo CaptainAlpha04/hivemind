@@ -41,8 +41,8 @@ const AboutPage = () => {
         </div>
         <nav className="hidden md:flex space-x-8">
           <Link href="/Home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Home</Link>
-          <Link href="/About" className="text-teal-300 transition-colors duration-300 text-sm font-medium">About</Link>
-          <Link href="/Contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Contact</Link>
+          <Link href="/about" className="text-teal-300 transition-colors duration-300 text-sm font-medium">About</Link>
+          <Link href="/contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Contact</Link>
         </nav>
       </header>
 
