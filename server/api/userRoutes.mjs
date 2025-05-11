@@ -4,6 +4,8 @@ import multer from 'multer'; // Import multer for file handling
 import bcrypt from 'bcrypt'; // For password hashing
 import User from '../model/user.mjs';
 import neo4jService from '../services/neo4jService.mjs';
+import { hash, compare } from 'bcrypt';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -167,10 +169,8 @@ router.put('/profilePicture', upload.single('profilePicture'), async (req, res) 
         console.error('Failed to update profile picture:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
     }
-import { hash, compare } from 'bcrypt';
-import clientPromise from '../lib/mongodb.mjs';
+});
 
-const router = express.Router();
 
 // Update the registration endpoint
 router.post('/register', async (req, res) => {
