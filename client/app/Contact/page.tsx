@@ -111,7 +111,7 @@ const ContactPage = () => {
           <div className="w-24 h-1 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-full mb-8"></div>
           <p className="text-xl md:text-2xl max-w-3xl mx-auto mb-8 text-gray-300">
             Have questions, feedback, or just want to say hello? We&apos;d love to hear from you. Our team is always ready to connect.
-          </p>
+            </p>
         </section>
 
         {/* Contact Form Section */}
@@ -314,19 +314,19 @@ const ContactPage = () => {
               {/* Replace with your logo if needed */}
               <span className="text-white font-semibold text-xl tracking-wide">HiveMind</span>
             </div>
-          </div>
+            </div>
           <div className="flex space-x-8 mb-4 md:mb-0">
             <Link href="/Home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Home</Link>
             <Link href="/About" className="text-teal-300 transition-colors duration-300 text-sm font-medium">About</Link>
             <Link href="/Contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium">Contact</Link>
-          </div>
+            </div>
           <div className="flex space-x-6">
             {/* ...social icons... */}
           </div>
-        </div>
+            </div>
         <div className="mt-8 pt-8 border-t border-teal-500/20 text-center text-slate-400 text-sm">
           <p>© 2025 HiveMind. All rights reserved.</p>
-          <div className="flex justify-center space-x-6 mt-4">
+            <div className="flex justify-center space-x-6 mt-4">
             <Link href="/privacy" className="text-slate-400 hover:text-teal-400 text-sm transition-colors">Privacy</Link>
             <Link href="/terms" className="text-slate-400 hover:text-teal-400 text-sm transition-colors">Terms</Link>
             <Link href="/help" className="text-slate-400 hover:text-teal-400 text-sm transition-colors">Help</Link>
@@ -334,7 +334,7 @@ const ContactPage = () => {
         </div>
       </footer>
     </div>
-  );
+);
 }
 
 export default ContactPage;
