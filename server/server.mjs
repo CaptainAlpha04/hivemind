@@ -21,9 +21,8 @@ dotenv.config();
 
 // Setting up the global variables
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3001; // Update port to match suggested code
 const mongoURI = process.env.MONGO_URI;
-
 
 // --- Mongoose Connection Setup ---
 // if (!mongoURI) {
@@ -55,7 +54,10 @@ verifyConnectivity()
   });
 
 // Initializing the middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+})); // Update CORS configuration to match suggested code
 app.use(express.json());
 // Apply Auth.js middleware
 // app.use(Auth(authConfig)); // Ensure authConfig is correctly imported and configured
@@ -67,6 +69,8 @@ app.get('/', async (req, res) => {
 // Using the routes
 actorRoute(app);
 app.use('/api/posts', postRoutes); // Mount the post routes under /api/posts
+
+app.use('/api/users', userRoutes); // Mount the user routes under /api/users
 
 // Starting the server
 app.listen(port, () => {

@@ -344,17 +344,49 @@
 // };
 
 // export default HomePage;
+'use client';
 
 import React from 'react'
 import Link from 'next/link'
+import { useSession, signOut } from "next-auth/react";
 
-function page() {
+function HomePage() {
+  const { data: session, status } = useSession();
+
+  if (status === "loading") {
+    return <p>Loading...</p>;
+  }
+  
   return (
-    <div>
-      <Link href="/auth/login" className="text-teal-300 transition-colors duration-300 font-medium bg-white/10 hover:backdrop-blur-md px-8 py-3 rounded-full hover:bg-teal-900 hover:text-teal-200">Login</Link>
-      <Link href="/auth/register" className="text-teal-200 transition-colors duration-300 font-medium bg-teal-900/70 hover:backdrop-blur-md px-8 py-3 rounded-full hover:bg-teal-900 hover:text-teal-200">Sign up</Link>
+    <div className="space-x-4">
+      {session?.user ? (
+        <>
+          <p className="text-white">Welcome, {session.user.name}</p>
+          <button
+            onClick={() => signOut()}
+            className="text-red-300 transition-colors duration-300 font-medium bg-white/10 hover:backdrop-blur-md px-8 py-3 rounded-full hover:bg-red-900 hover:text-white"
+          >
+            Sign out
+          </button>
+        </>
+      ) : (
+        <>
+          <Link
+            href="/auth/login"
+            className="text-teal-300 transition-colors duration-300 font-medium bg-white/10 hover:backdrop-blur-md px-8 py-3 rounded-full hover:bg-teal-900 hover:text-teal-200"
+          >
+            Login
+          </Link>
+          <Link
+            href="/auth/register"
+            className="text-teal-200 transition-colors duration-300 font-medium bg-teal-900/70 hover:backdrop-blur-md px-8 py-3 rounded-full hover:bg-teal-900 hover:text-teal-200"
+          >
+            Sign up
+          </Link>
+        </>
+      )}
     </div>
-  )
+  );
 }
 
-export default page
+export default HomePage
