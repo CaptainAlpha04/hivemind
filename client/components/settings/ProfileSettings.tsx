@@ -1,169 +1,239 @@
 'use client';
-
 import { useState } from 'react';
 import Image from 'next/image';
+import { User, Pencil, Check, Palette, Tag, Sparkles, BookImage, UserPen } from 'lucide-react';
 
 export default function ProfileSettings() {
-  // Example state (replace with real data/fetching in production)
+  // State management
   const [displayName, setDisplayName] = useState('maad9110');
   const [pronouns, setPronouns] = useState('');
   const [about, setAbout] = useState('');
-  const [avatar, setAvatar] = useState('/default-avatar.png');
+  const [avatar] = useState('/default-avatar.png');
   const [bannerColor, setBannerColor] = useState('#06b6d4');
+  const [saved, setSaved] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    // Simulate saving
+    setSaved(true);
+    // TODO: Implement profile update logic
+    console.log('Profile update:', { displayName, pronouns, about, avatar, bannerColor });
+    // Reset the saved animation after 2 seconds
+    setTimeout(() => {
+      setSaved(false);
+    }, 2000);
+  };
+
+  const colors = [
+    '#06b6d4', // Cyan
+    '#8b5cf6', // Violet
+    '#ec4899', // Pink
+    '#f59e0b', // Amber
+    '#10b981', // Emerald
+  ];
 
   return (
-    <div className="max-w-5xl mx-auto mt-8 space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold text-white">Profiles</h1>
-        <button
-          className="flex flex-col items-center text-zinc-400 hover:text-white transition"
-          title="Close"
-        >
-          <span className="text-2xl">✕</span>
-          <span className="text-xs mt-1">ESC</span>
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-8 border-b border-zinc-800 mb-6">
-        <button className="pb-2 border-b-2 border-teal-400 text-teal-300 font-medium">Main Profile</button>
-        <button className="pb-2 text-zinc-400 hover:text-white transition">Per-server Profiles</button>
-      </div>
-
-      {/* Main Content: Two Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Left: Editable Fields */}
-        <div className="space-y-6">
-          {/* Display Name */}
-          <div>
-            <label className="block text-zinc-300 font-medium mb-1">Display Name</label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={e => setDisplayName(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white focus:ring-2 focus:ring-teal-500 outline-none"
-            />
-          </div>
-          {/* Pronouns */}
-          <div>
-            <label className="block text-zinc-300 font-medium mb-1">Pronouns</label>
-            <input
-              type="text"
-              value={pronouns}
-              onChange={e => setPronouns(e.target.value)}
-              placeholder="Add your pronouns"
-              className="w-full px-4 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white focus:ring-2 focus:ring-teal-500 outline-none"
-            />
-          </div>
-          {/* Avatar */}
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <label className="block text-zinc-300 font-medium">Avatar</label>
-              <span className="ml-2 px-2 py-0.5 rounded bg-rose-500 text-xs text-white font-bold">NEW</span>
+    <div className="min-h-screen bg-black text-zinc-200 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Header */}
+     {/* Header */}
+     <div className="space-y-2">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-teal-500/20 p-2 rounded-lg">
+              <UserPen className="h-7 w-7 text-teal-400" />
             </div>
-            <div className="text-zinc-400 text-xs mb-2">You can now access up to 6 of your most <a href="#" className="text-teal-400 underline">recent avatars</a></div>
-            <div className="flex items-center gap-4">
-              <Image src={avatar} alt="Avatar" width={48} height={48} className="rounded-full border border-zinc-700" />
-              <button
-                type="button"
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-zinc-900 font-semibold shadow hover:opacity-90 transition"
-              >
-                Change Avatar
-              </button>
-            </div>
+            <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">
+              Profile 
+            </h2>
           </div>
-          {/* Avatar Decoration */}
-          <div>
-            <label className="block text-zinc-300 font-medium mb-1">Avatar Decoration</label>
-            <button
-              type="button"
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-zinc-900 font-semibold shadow hover:opacity-90 transition"
-            >
-              Change Decoration
-            </button>
-          </div>
-          {/* Nameplate */}
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <label className="block text-zinc-300 font-medium">Nameplate</label>
-              <span className="ml-2 px-2 py-0.5 rounded bg-rose-500 text-xs text-white font-bold">NEW</span>
-            </div>
-            <button
-              type="button"
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-zinc-900 font-semibold shadow hover:opacity-90 transition"
-            >
-              Change Nameplate
-            </button>
-          </div>
-          {/* Profile Effect */}
-          <div>
-            <label className="block text-zinc-300 font-medium mb-1">Profile Effect</label>
-            <button
-              type="button"
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-zinc-900 font-semibold shadow hover:opacity-90 transition"
-            >
-              Change Effect
-            </button>
-          </div>
-          {/* Banner Color */}
-          <div>
-            <label className="block text-zinc-300 font-medium mb-1">Banner Color</label>
-            <button
-              type="button"
-              className="w-10 h-10 rounded-lg border-2 border-zinc-700 flex items-center justify-center"
-              style={{ background: bannerColor }}
-              onClick={() => setBannerColor('#06b6d4')}
-            >
-              <svg width="20" height="20" fill="none"><rect width="20" height="20" rx="4" fill="#fff" fillOpacity="0.2" /></svg>
-            </button>
-          </div>
-          {/* About Me */}
-          <div>
-            <label className="block text-zinc-300 font-medium mb-1">About Me</label>
-            <div className="text-zinc-400 text-xs mb-2">You can use markdown and links if you'd like.</div>
-            <textarea
-              value={about}
-              onChange={e => setAbout(e.target.value)}
-              rows={4}
-              maxLength={190}
-              className="w-full px-4 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white focus:ring-2 focus:ring-teal-500 outline-none resize-none"
-            />
-            <div className="text-right text-xs text-zinc-500">{190 - about.length}</div>
-          </div>
+          <p className="text-zinc-400 font-light">
+            Manage your User Profile
+          </p>
+          <div className="border-b border-white/5 pt-2"></div>
         </div>
 
-        {/* Right: Profile Preview */}
-        <div>
-          <div className="bg-zinc-900/80 rounded-2xl shadow-lg border border-zinc-800 overflow-hidden p-6 flex flex-col items-center">
-            {/* Banner */}
-            <div
-              className="w-full h-24 rounded-xl mb-[-2.5rem]"
-              style={{ background: bannerColor }}
-            />
-            {/* Avatar */}
-            <div className="relative -top-10 mb-2">
-              <Image src={avatar} alt="Avatar" width={80} height={80} className="rounded-full border-4 border-zinc-950 bg-zinc-800" />
+        {/* Glassy Card */}
+        <form onSubmit={handleSubmit} className="backdrop-blur-xl bg-white/5 rounded-2xl p-6 md:p-8 border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgba(20,184,166,0.12)] transition-all duration-300 space-y-10">
+          {/* Main Content */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            {/* Left: Editable Fields */}
+            <div className="md:col-span-2 space-y-8">
+              {/* Display Name */}
+              <div className="space-y-2">
+                <label htmlFor="displayName" className="flex items-center gap-2 text-white font-medium">
+                  <User className="h-7 w-7 text-teal-400 size-18" />
+                  Display Name
+                </label>
+                <p className="text-xs text-zinc-400">This is how others will see you</p>
+                <input
+                  type="text"
+                  id="displayName"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="input input-bordered w-full bg-zinc-900 border-teal-700 text-white rounded-lg py-2.5 px-4 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent transition-all"
+                />
+              </div>
+              {/* Pronouns */}
+              <div className="space-y-2">
+                <label htmlFor="pronouns" className="flex items-center gap-2 text-white font-medium">
+                  <Tag size={18} className="h-7 w-7 text-teal-400"/>
+                  Pronouns
+                </label>
+                <p className="text-xs text-zinc-400">Add your preferred pronouns</p>
+                <input
+                  type="text"
+                  id="pronouns"
+                  value={pronouns}
+                  onChange={(e) => setPronouns(e.target.value)}
+                  placeholder="Add your pronouns"
+                  className="input input-bordered w-full bg-zinc-900 border-teal-700 text-white rounded-lg py-2.5 px-4 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent transition-all"
+                />
+              </div>
+              {/* Banner Color */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-white font-medium">
+                  <Palette size={18} className="h-7 w-7 text-teal-400"/>
+                  Banner Color
+                </label>
+                <p className="text-xs text-zinc-400">Choose a color for your profile banner</p>
+                <div className="flex gap-3 mt-2">
+                  {colors.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      style={{ backgroundColor: color }}
+                      className={`w-8 h-8 rounded-full focus:outline-none focus:ring-2 focus:ring-white transition-all relative border-2 ${bannerColor === color ? 'border-teal-400' : 'border-transparent'}`}
+                      onClick={() => setBannerColor(color)}
+                    >
+                      {bannerColor === color && (
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <Check size={16} color="white" />
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* About Me */}
+              <div className="space-y-2">
+                <label htmlFor="about" className="flex items-center gap-2 text-white font-medium">
+                  <BookImage size={18} className="h-7 w-7 text-teal-400"/>
+                  About Me
+                </label>
+                <p className="text-xs text-zinc-400">You can use markdown and links if you&apos;d like</p>
+                <textarea
+                  id="about"
+                  value={about}
+                  onChange={(e) => setAbout(e.target.value)}
+                  rows={4}
+                  maxLength={190}
+                  className="input input-bordered w-full bg-zinc-900 border-teal-700 text-white rounded-lg py-2.5 px-4 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent transition-all resize-none"
+                />
+                <div className="text-right text-xs text-zinc-500">{190 - about.length} characters remaining</div>
+              </div>
+              {/* Decorations Section */}
+              <div className="pt-4 border-t border-zinc-800">
+                <div className="flex items-center gap-2 mb-6">
+                  <Sparkles size={18} className="text-teal-400" />
+                </div>
+              </div>
             </div>
-            {/* Display Name and Username */}
-            <div className="text-center mt-2">
-              <div className="text-xl font-bold text-white">{displayName}</div>
-              <div className="text-zinc-400 text-sm">hammadahmed9110</div>
+            {/* Right: Profile Preview */}
+            <div className="space-y-6">
+              <div className="sticky top-8">
+                {/* Preview Title */}
+                <div className="text-center mb-4">
+                  <h3 className="text-lg font-medium text-white">Preview</h3>
+                  <p className="text-zinc-400 text-sm">How others will see your profile</p>
+                </div>
+                {/* Profile Card Preview */}
+                <div className="bg-zinc-900 rounded-xl shadow-lg border border-zinc-800 overflow-hidden">
+                  {/* Banner */}
+                  <div
+                    className="w-full h-20"
+                    style={{ background: bannerColor }}
+                  />
+                  {/* Profile Content */}
+                  <div className="p-4">
+                    {/* Avatar */}
+                    <div className="relative -mt-10 mb-3 flex justify-center">
+                      <div className="relative">
+                        <Image
+                          src={avatar}
+                          alt="Avatar"
+                          width={64}
+                          height={64}
+                          className="rounded-full border-4 border-zinc-900 bg-zinc-800"
+                        />
+                        <button 
+                          type="button"
+                          className="absolute bottom-0 right-0 bg-teal-500 rounded-full p-1 border-2 border-zinc-900"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    {/* Display Name and Username */}
+                    <div className="text-center mt-2">
+                      <div className="text-lg font-bold text-white">{displayName || 'Your Name'}</div>
+                      {pronouns && <div className="text-teal-400 text-xs mb-1">{pronouns}</div>}
+                      <div className="text-zinc-400 text-xs">hammadahmed9110</div>
+                    </div>
+                    {/* About Me Section */}
+                    {about && (
+                      <div className="mt-3 p-2 bg-zinc-800/50 rounded-lg text-zinc-300 text-xs">
+                        {about}
+                      </div>
+                    )}
+                    {/* Example Button */}
+                    <div className="mt-3 flex justify-center">
+                      <button 
+                        type="button"
+                        className="btn btn-outline btn-sm border-teal-700 text-teal-400 hover:bg-teal-900 hover:border-teal-600"
+                      >
+                        Message
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {/* Nameplate Preview */}
+                <div className="mt-4">
+                  <h4 className="text-xs font-medium text-zinc-400 mb-2">Nameplate Preview</h4>
+                  <div className="flex items-center gap-2 bg-zinc-800 rounded-lg px-3 py-1.5 border border-zinc-700">
+                    <Image src={avatar} alt="Avatar" width={18} height={18} className="rounded-full" />
+                    <span className="text-white text-sm font-medium">{displayName || 'Your Name'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            {/* Example Button */}
-            <button className="mt-4 px-4 py-2 rounded-lg bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition">
-              Example Button
+          </div>
+          {/* Save Button */}
+          <div className="flex justify-end pt-4">
+            <button
+              type="submit"
+              className={`btn px-6 py-2.5 rounded-lg font-medium text-white transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-white/20 
+                ${saved
+                  ? 'bg-emerald-500 hover:bg-emerald-600 border-none'
+                  : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 border-none shadow-lg shadow-teal-500/20'
+                }`}
+            >
+              <div className="flex items-center gap-2">
+                {saved ? (
+                  <>
+                    <Check size={16} />
+                    <span>Profile Saved</span>
+                  </>
+                ) : (
+                  <span>Save Profile</span>
+                )}
+              </div>
             </button>
           </div>
-          {/* Nameplate Preview */}
-          <div className="mt-6">
-            <div className="flex items-center gap-2 bg-zinc-800/80 rounded-lg px-4 py-2">
-              <Image src={avatar} alt="Avatar" width={24} height={24} className="rounded-full" />
-              <span className="text-white font-medium">{displayName}</span>
-            </div>
-          </div>
-        </div>
+        </form>
       </div>
+      {/* Subtle background elements */}
+      <div className="fixed -top-48 -right-48 w-96 h-96 bg-teal-500/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="fixed -bottom-48 -left-48 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
     </div>
   );
 }
