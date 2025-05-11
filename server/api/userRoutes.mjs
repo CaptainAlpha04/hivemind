@@ -1,9 +1,173 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import multer from 'multer'; // Import multer for file handling
+import bcrypt from 'bcrypt'; // For password hashing
 import User from '../model/user.mjs';
 import neo4jService from '../services/neo4jService.mjs';
 
 const router = express.Router();
+
+// Configure multer for memory storage to handle profile pictures as BLOBs
+const storage = multer.memoryStorage();
+const fileFilter = (req, file, cb) => {
+    // Accept only image files
+    if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+    } else {
+        cb(new Error('Not an image! Please upload only images.'), false);
+    }
+};
+const upload = multer({ 
+    storage: storage, 
+    fileFilter: fileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 } // Limit file size to 5MB
+});
+
+// POST /api/users - Create a new user
+router.post('/', upload.single('profilePicture'), async (req, res) => {
+    try {
+        const { name, email, username, password, bio } = req.body;
+        
+        // Validate required fields
+        if (!name || !email || !username || !password) {
+            return res.status(400).json({ message: 'Missing required fields: name, email, username, and password are required' });
+        }
+        
+        // Check if user with email or username already exists
+        const existingUser = await User.findOne({ 
+            $or: [{ email }, { username }]
+        });
+        
+        if (existingUser) {
+            if (existingUser.email === email) {
+                return res.status(409).json({ message: 'Email already in use' });
+            }
+            if (existingUser.username === username) {
+                return res.status(409).json({ message: 'Username already taken' });
+            }
+        }
+        
+        // Hash the password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        
+        // Create new user object
+        const newUser = new User({
+            name,
+            email,
+            username,
+            password: hashedPassword,
+            bio: bio || '',
+            conversationIds: [],
+            followersCount: 0,
+            followingCount: 0,
+            following: [],
+            settings: {
+                receiveEmailNotifications: true,
+                theme: 'light'
+            },
+            blockedUserIds: []
+        });
+        
+        // Add profile picture if uploaded
+        if (req.file) {
+            newUser.profilePicture = req.file.buffer;
+        }
+        
+        // Save the user to the database
+        await newUser.save();
+        
+        // Create a sanitized user object to return (exclude password and other sensitive data)
+        const userResponse = {
+            _id: newUser._id,
+            name: newUser.name,
+            email: newUser.email,
+            username: newUser.username,
+            bio: newUser.bio,
+            hasProfilePicture: !!newUser.profilePicture,
+            followersCount: newUser.followersCount,
+            followingCount: newUser.followingCount,
+            createdAt: newUser.createdAt
+        };
+        
+        return res.status(201).json({ 
+            message: 'User created successfully', 
+            user: userResponse 
+        });
+        
+    } catch (error) {
+        console.error('Failed to create user:', error);
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ 
+                message: 'Validation Error', 
+                errors: Object.keys(error.errors).reduce((acc, key) => {
+                    acc[key] = error.errors[key].message;
+                    return acc;
+                }, {})
+            });
+        }
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// GET /api/users/:userId/profilePicture - Get a user's profile picture
+router.get('/:userId/profilePicture', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: 'Invalid user ID format' });
+        }
+        
+        const user = await User.findById(userId).select('profilePicture');
+        
+        if (!user || !user.profilePicture) {
+            return res.status(404).json({ message: 'Profile picture not found' });
+        }
+        
+        // Set appropriate content type
+        // Since we didn't store content type with the buffer, we'll use a default
+        res.set('Content-Type', 'image/jpeg');
+        res.send(user.profilePicture);
+        
+    } catch (error) {
+        console.error('Failed to retrieve profile picture:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// PUT /api/users/profilePicture - Update current user's profile picture
+router.put('/profilePicture', upload.single('profilePicture'), async (req, res) => {
+    const session = req.auth;
+    const userIdString = session?.user?.id ?? session?.user?.sub;
+
+    if (!session || !userIdString) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+    const userId = new mongoose.Types.ObjectId(userIdString);
+    
+    if (!req.file) {
+        return res.status(400).json({ message: 'No profile picture provided' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Update user's profile picture
+        user.profilePicture = req.file.buffer;
+        await user.save();
+        
+        return res.status(200).json({ message: 'Profile picture updated successfully' });
+        
+    } catch (error) {
+        console.error('Failed to update profile picture:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
 
 // PUT /api/users/settings - Update user settings
 router.put('/settings', async (req, res) => {
