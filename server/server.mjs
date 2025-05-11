@@ -21,7 +21,7 @@ dotenv.config();
 
 // Setting up the global variables
 const app = express();
-const port = process.env.PORT || 3001; // Update port to match suggested code
+const port = process.env.PORT || 5001; // Update port to match suggested code
 const mongoURI = process.env.MONGODB_URI;
 
 // --- Mongoose Connection Setup ---
@@ -55,7 +55,7 @@ verifyConnectivity()
 
 // Initializing the middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: 'http://localhost:5000',
   credentials: true
 })); // Update CORS configuration to match suggested code
 app.use(express.json());
