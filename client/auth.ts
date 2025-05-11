@@ -1,15 +1,10 @@
 import NextAuth from "next-auth";
-import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { NextAuthConfig } from "next-auth";
 
 export const config = {
   providers: [
-    GitHub({
-      clientId: process.env.GITHUB_ID!,
-      clientSecret: process.env.GITHUB_SECRET!,
-    }),
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -22,12 +17,12 @@ export const config = {
       },
       async authorize(credentials) {
         try {
-          const response = await fetch("http://localhost:3001/api/users/login", {
+          const response = await fetch("http://localhost:5001/api/users/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password,
+              email: credentials?.email,
+              password: credentials?.password,
             }),
           });
 
@@ -52,9 +47,9 @@ export const config = {
   callbacks: {
     async signIn({ user, account }) {
       // Only for OAuth providers
-      if (account?.provider === "google" || account?.provider === "github") {
+      if (account?.provider === "google") {
         try {
-          const response = await fetch("http://localhost:3001/api/users/oauth-user", {
+          const response = await fetch("http://localhost:5001/api/users/oauth-user", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -65,12 +60,7 @@ export const config = {
             })
           });
           
-          if (!response.ok) {
-            console.error(`OAuth sync failed with status ${response.status}`);
-            return false;
-          }
-          
-          return true;
+          return response.ok;
         } catch (error) {
           console.error("Error syncing OAuth user:", error);
           return false;
@@ -94,6 +84,17 @@ export const config = {
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production"
+      }
+    }
   },
   pages: {
     signIn: "/auth/login",

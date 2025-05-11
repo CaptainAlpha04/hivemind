@@ -117,11 +117,6 @@ const botSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     },
-    aiModel: {
-        type: String,
-        enum: ['GPT-3.5', 'GPT-4', 'Claude', 'Other'],
-        default: 'GPT-4'
-    },
     personality: {
         type: String, // JSON string containing the full personality configuration
         required: true

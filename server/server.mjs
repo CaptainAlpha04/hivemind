@@ -21,21 +21,21 @@ dotenv.config();
 
 // Setting up the global variables
 const app = express();
-const port = process.env.PORT || 3001; // Update port to match suggested code
-const mongoURI = process.env.MONGO_URI;
+const port = process.env.PORT || 5001; // Update port to match suggested code
+const mongoURI = process.env.MONGODB_URI;
 
 // --- Mongoose Connection Setup ---
-// if (!mongoURI) {
-//     console.error('FATAL ERROR: MONGO_URI is not defined in .env file');
-//     // process.exit(1); // Exit if DB connection string is missing
-// }
+if (!mongoURI) {
+    console.error('FATAL ERROR: MONGO_URI is not defined in .env file');
+    // process.exit(1); // Exit if DB connection string is missing
+}
 
-// mongoose.connect(mongoURI)
-//     .then(() => console.log('MongoDB connected via Mongoose...'))
-//     .catch((err) => {
-//         console.error('MongoDB connection error:', err.message);
-//         process.exit(1); // Exit if connection fails
-//     });
+mongoose.connect(mongoURI)
+    .then(() => console.log('MongoDB connected via Mongoose...'))
+    .catch((err) => {
+        console.error('MongoDB connection error:', err.message);
+        process.exit(1); // Exit if connection fails
+    });
 
 // Handle connection events (optional but recommended)
 mongoose.connection.on('error', err => {
