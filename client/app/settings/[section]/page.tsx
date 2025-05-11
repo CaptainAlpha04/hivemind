@@ -13,30 +13,6 @@ interface SettingsPageProps {
   };
 }
 
-// Map of section names to their display titles and icons
-const sectionConfig: Record<string, { title: string; description: string; icon: string }> = {
-  profile: {
-    title: 'Profile Settings',
-    description: 'Manage your personal information and profile details',
-    icon: '👤',
-  },
-  account: {
-    title: 'Account Settings',
-    description: 'Update your account settings and preferences',
-    icon: '🔑',
-  },
-  preferences: {
-    title: 'Preferences',
-    description: 'Customize your application preferences and settings',
-    icon: '⚙️',
-  },
-  privacy: {
-    title: 'Privacy Settings',
-    description: 'Manage your privacy settings and data preferences',
-    icon: '🔒',
-  },
-};
-
 export default function SettingsPage({ params }: SettingsPageProps) {
   const { section } = params;
   const [isLoading, setIsLoading] = useState(true);
@@ -55,7 +31,6 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   }
 
   const SettingsComponent = settingsComponents[section];
-  const sectionInfo = sectionConfig[section];
 
   // Simulate loading state
   useEffect(() => {
@@ -67,28 +42,13 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   }, [section]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header Section */}
-      <div className="bg-zinc-800/50 rounded-xl p-6 border border-zinc-700">
-        <div className="flex items-center gap-4 mb-4">
-          <span className="text-3xl">{sectionInfo.icon}</span>
-          <div>
-            <h1 className="text-2xl font-bold text-white">
-              {sectionInfo.title}
-            </h1>
-            <p className="text-zinc-400 mt-1">
-              {sectionInfo.description}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Section */}
-      <div className={`transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
-        <div className="bg-zinc-800/50 rounded-xl p-6 border border-zinc-700">
+    <div className="w-full animate-fade-in">
+      <div className={`transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}> 
+        <div className="bg-zinc-800/80 rounded-2xl p-8 border border-zinc-700 shadow-lg max-w-3xl mx-auto">
           <SettingsComponent />
         </div>
       </div>
     </div>
   );
 }
+ 
