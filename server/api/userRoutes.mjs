@@ -146,7 +146,7 @@ router.put('/profilePicture', upload.single('profilePicture'), async (req, res) 
     if (!session || !userIdString) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
-    const userId = new mongoose.Types.ObjectId(userIdString);
+    const userId = new mongoose.Types.ObjectId(userIdString.toString());
     
     if (!req.file) {
         return res.status(400).json({ message: 'No profile picture provided' });
@@ -468,13 +468,13 @@ router.post('/block/:userIdToBlock', async (req, res) => {
     if (!session || !currentUserIdString) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
-    const currentUserId = new mongoose.Types.ObjectId(currentUserIdString);
+    const currentUserId = new mongoose.Types.ObjectId(currentUserIdString.toString());
     const { userIdToBlock } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(userIdToBlock)) {
         return res.status(400).json({ message: 'Invalid user ID to block' });
     }
-    const userToBlockId = new mongoose.Types.ObjectId(userIdToBlock);
+    const userToBlockId = new mongoose.Types.ObjectId(userIdToBlock.toString());
 
     if (currentUserId.equals(userToBlockId)) {
         return res.status(400).json({ message: 'Cannot block yourself' });
@@ -515,7 +515,7 @@ router.post('/unblock/:userIdToUnblock', async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(userIdToUnblock)) {
         return res.status(400).json({ message: 'Invalid user ID to unblock' });
     }
-    const userToUnblockId = new mongoose.Types.ObjectId(userIdToUnblock);
+    const userToUnblockId = new mongoose.Types.ObjectId(userIdToUnblock.toString());
 
     try {
         const currentUser = await User.findById(currentUserId);
