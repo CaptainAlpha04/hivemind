@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
@@ -8,17 +8,36 @@ import Hero from '@/components/Hero';
 export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [isSigningOut, setIsSigningOut] = useState(false);
   
   // Add debugging to see what's happening
   useEffect(() => {
     console.log("Auth status:", status);
     console.log("Session data:", session);
-  }, [status, session]);
+    
+    // Handle redirect after sign-out state change
+    if (isSigningOut && status === "unauthenticated") {
+      router.push("/auth/login");
+    }
+  }, [status, session, isSigningOut, router]);
   
   const handleSignOut = async () => {
+    setIsSigningOut(true);
     await signOut({ redirect: false });
-    router.push("/auth/login");
+    // Don't redirect here - let the useEffect handle it after state updates
   };
+
+  // Show loading screen during sign-out
+  if (isSigningOut) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-950 to-slate-900">
+        <div className="text-center">
+          <div className="animate-spin mb-4 h-12 w-12 border-t-2 border-b-2 border-teal-400 rounded-full mx-auto"></div>
+          <p className="text-teal-200 text-xl">Signing out...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900 relative overflow-hidden">
@@ -51,7 +70,11 @@ export default function HomePage() {
               </button>
             </div>
           ) : (
+            status === "loading" ? (
+              <div className="text-white">Loading...</div>
+            ) : (
             <Hero />
+            )
           )}
         </div>
       </main>
