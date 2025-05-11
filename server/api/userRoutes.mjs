@@ -5,7 +5,6 @@ import bcrypt from 'bcrypt'; // For password hashing
 import User from '../model/user.mjs';
 import neo4jService from '../services/neo4jService.mjs';
 import { hash, compare } from 'bcrypt';
-import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -172,20 +171,18 @@ router.put('/profilePicture', upload.single('profilePicture'), async (req, res) 
 });
 
 
-// Update the registration endpoint
+// Register endpoint
 router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body; // Remove dateOfBirth from destructuring
+  const { name, email, password } = req.body;
 
-  if (!name || !email || !password) { // Remove dateOfBirth from validation
+  if (!name || !email || !password) {
     return res.status(400).json({ message: 'Name, email and password are required' });
   }
 
   try {
-    const client = await clientPromise;
-    const db = client.db();
-
-    // Check if user already exists
-    const existingUser = await db.collection('users').findOne({ email });
+    // Check if user already exists with Mongoose
+    const existingUser = await User.findOne({ email });
+    
     if (existingUser) {
       return res.status(400).json({ message: 'Email already in use' });
     }
@@ -193,19 +190,21 @@ router.post('/register', async (req, res) => {
     // Hash password and create user
     const hashedPassword = await hash(password, 12);
     
-    const result = await db.collection('users').insertOne({
+    const newUser = new User({
       name,
       email,
+      username: email.split('@')[0] + Math.floor(Math.random() * 1000), // Generate a username
       password: hashedPassword,
-      // Remove dateOfBirth
       authType: 'credentials',
       createdAt: new Date(),
     });
 
-    console.log('User registered with ID:', result.insertedId);
+    await newUser.save();
+    
+    console.log('User registered with ID:', newUser._id);
     return res.status(201).json({ 
       message: 'User registered successfully',
-      userId: result.insertedId
+      userId: newUser._id
     });
   } catch (error) {
     console.error('Error registering user:', error);
@@ -222,33 +221,33 @@ router.post('/oauth-user', async (req, res) => {
   }
 
   try {
-    const client = await clientPromise;
-    const db = client.db();
-    
     console.log(`Processing OAuth user: ${email} from ${provider}`);
 
     // Check if user exists
-    const existingUser = await db.collection('users').findOne({ email });
-    if (existingUser) {
-      console.log(`OAuth user exists: ${existingUser._id}`);
+    let user = await User.findOne({ email });
+    
+    if (user) {
+      console.log(`OAuth user exists: ${user._id}`);
       
       // Update last login time
-      await db.collection('users').updateOne(
-        { _id: existingUser._id },
+      await User.updateOne(
+        { _id: user._id },
         { $set: { lastLogin: new Date() } }
       );
       
       return res.status(200).json({
         success: true,
-        userId: existingUser._id,
+        userId: user._id,
         message: 'User authenticated'
       });
     }
 
-    // Create new OAuth user
-    const newUser = await db.collection('users').insertOne({
+    // Create new OAuth user with Mongoose
+    const newUser = new User({
       name,
       email,
+      username: email.split('@')[0] + Math.floor(Math.random() * 1000), // Generate a username
+      password: await hash(Math.random().toString(36).slice(-8), 12), // Random secure password
       profileImage: image,
       authType: 'oauth',
       provider,
@@ -256,10 +255,12 @@ router.post('/oauth-user', async (req, res) => {
       lastLogin: new Date()
     });
 
-    console.log(`New OAuth user created: ${newUser.insertedId}`);
+    await newUser.save();
+    
+    console.log(`New OAuth user created: ${newUser._id}`);
     return res.status(201).json({
       success: true,
-      userId: newUser.insertedId,
+      userId: newUser._id,
       message: 'OAuth user created'
     });
   } catch (error) {
@@ -280,22 +281,21 @@ router.post('/login', async (req, res) => {
   }
   
   try {
-    const client = await clientPromise;
-    const db = client.db();
-    
-    const user = await db.collection('users').findOne({ email });
+    // Use Mongoose model instead of MongoDB client
+    const user = await User.findOne({ email }).lean();
     
     if (!user || !user.password) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     
+    // Check password
     const isPasswordValid = await compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     
     // Update last login
-    await db.collection('users').updateOne(
+    await User.updateOne(
       { _id: user._id },
       { $set: { lastLogin: new Date() } }
     );
