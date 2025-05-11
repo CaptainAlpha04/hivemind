@@ -22,7 +22,9 @@ dotenv.config();
 // Setting up the global variables
 const app = express();
 const port = process.env.PORT || 3001; // Update port to match suggested code
-const mongoURI = process.env.MONGODB_URI;
+
+const mongoURI = process.env.MONGO_URI;
+
 
 // --- Mongoose Connection Setup ---
 if (!mongoURI) {
