@@ -1,7 +1,6 @@
 "use client";
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn as clientSignIn } from 'next-auth/react'; // For client components
 import { signInWithProvider } from '../actions'; // Keep this for OAuth
