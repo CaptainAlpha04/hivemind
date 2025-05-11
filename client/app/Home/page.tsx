@@ -2,7 +2,7 @@ import React from 'react'
 
 import Header from '@/components/Header'
 import Hero from '@/components/Hero'
-function page() {
+export default function page() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900 relative overflow-hidden">
      
@@ -26,8 +26,6 @@ function page() {
           <Hero />
         </div>
       </main>
-    </div>
+    </ div>
   )
 }
-
-export default page
