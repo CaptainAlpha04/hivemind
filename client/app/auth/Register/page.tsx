@@ -65,7 +65,7 @@ export default function SignupPage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/users/register', {
+      const response = await fetch('http://localhost:5000/api/users/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

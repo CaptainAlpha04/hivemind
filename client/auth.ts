@@ -17,7 +17,7 @@ export const config = {
       },
       async authorize(credentials) {
         try {
-          const response = await fetch("http://localhost:5001/api/users/login", {
+          const response = await fetch("http://localhost:5000/api/users/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -49,7 +49,7 @@ export const config = {
       // Only for OAuth providers
       if (account?.provider === "google") {
         try {
-          const response = await fetch("http://localhost:5001/api/users/oauth-user", {
+          const response = await fetch("http://localhost:5000/api/users/oauth-user", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
