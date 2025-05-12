@@ -3,7 +3,7 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="py-16 px-6 bg-gradient-to-b from-slate-900 to-slate-950">
+    <footer className="py-16 px-6 bg-gradient-to-b from-transparent to-teal-950">
       <div className="max-w-6xl mx-auto">
         {/* Logo and tagline section */}
         <div className="flex flex-col items-center text-center mb-12">
