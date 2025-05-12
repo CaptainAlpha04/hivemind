@@ -3,6 +3,8 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import dotenv from "dotenv";
 import fs from 'fs';
 import cleanJSON from 'cleanllmjson';
+import Bot from "../../model/bot.mjs"; // Import the Bot model
+import mongoose from "mongoose";
 
 dotenv.config();
 
@@ -14,22 +16,42 @@ export async function generateActorPersona() {
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.0-flash',
-            contents: "Generate a totally random persona from different regions like India, Pakistan, Japan, Arabia, USA, Europe, Brazil, central Asia, Africa etc",
-            config: {
-                temperature: 1.5,
-                systemInstruction: process.env.GENERATE_ACTOR_INSTRUCTS,
-            }
-        })
+            contents: "Generate a unique, natural persona of varying age(10-70), gender, and region (e.g., Asia, Subcontinent, Central Asia, Europe, Americas, Australia etc.), avoiding stereotypes and different body types and physical apperances.",
+            config: { temperature: 1.95, systemInstruction: process.env.GENERATE_ACTOR_INSTRUCTS }
+        });
 
         const cleanedResponse = cleanJSON(response.text);
         console.log('Cleaned Response:', cleanedResponse);
 
-        const physical_description = cleanedResponse.Physical_Description;
+        // Extract the relevant fields from the cleaned response
+        const name = cleanedResponse.Name;
+        const username = cleanedResponse.Username;
         const age = cleanedResponse.Age;
         const gender = cleanedResponse.Gender;
+        const nationality = cleanedResponse.Nationality;
         const ethnicity = cleanedResponse.Ethnicity;
-        const personality_traits = cleanedResponse.Personality_Traits;
-        const religion = cleanedResponse.Religion;
+        const culturalBackground = cleanedResponse.Cultural_Background;
+        const occupation = cleanedResponse.Occupation;
+        const education = cleanedResponse.Education;
+        const skills = cleanedResponse.Skills;
+        const hobbies = cleanedResponse.Hobbies;
+        const interests = cleanedResponse.Interests;
+        const physical_description = cleanedResponse.Physical_Description;
+        const generalDisposition = cleanedResponse.General_Disposition;
+        const religion_beliefs = cleanedResponse.Religion_Beliefs;
+        const personality_type = cleanedResponse.Personality_Type;
+        const personality_traits = cleanedResponse.Key_Personality_Traits;
+        const strengths = cleanedResponse.Strengths;
+        const weaknesses = cleanedResponse.Weaknesses;
+        const communication_style = cleanedResponse.Communication_Style;
+        const values_and_core_beliefs = cleanedResponse.Values_And_Core_Beliefs;
+        const aspirations_and_goals = cleanedResponse.Aspiration_And_Goals;
+        const challenges_and_struggles = cleanedResponse.Challenges_And_Struggles;
+        const family_details = cleanedResponse.Family_Details;
+        const social_circle = cleanedResponse.Social_Circle;
+        const dailyLifeSnippet = cleanedResponse.Daily_Life_Snippet;
+        const quirksAndHabits = cleanedResponse.Quirks_And_Habits;
+        const briefBackstory = cleanedResponse.Brief_Backstory;
 
         const build = physical_description.Build;
         const height = physical_description.Height;
@@ -38,19 +60,41 @@ export async function generateActorPersona() {
         const distinguished_features = physical_description.Distinguished_Features;
         const style = physical_description.Style;
 
-        generateActorProfileImage(build, height, hair, eyes, distinguished_features, style, age, gender, ethnicity, personality_traits, religion)
+        const profilePicture = await generateActorProfileImage(build, height, hair, eyes, distinguished_features, style, age, gender, ethnicity, religion_beliefs)
+
+        const actor = new Bot({
+            name,username, age, gender, nationality, ethnicity, culturalBackground, occupation, education, skills, hobbies, interests,
+            physicalDescription: {
+                build, height, hair, eyes, distinguished_features, style
+            },
+            profilePicture,
+            generalDisposition, religionBeliefs: religion_beliefs, personalityType: personality_type,
+            keyPersonalityTraits: personality_traits, strengths, weaknesses, communicationStyle: communication_style,
+            valuesAndCoreBeliefs: values_and_core_beliefs, aspirationsAndGoals: aspirations_and_goals,
+            challengesAndStruggles: challenges_and_struggles, familyDetails: family_details,
+            socialCircle: social_circle, dailyLifeSnippet, quirksAndHabits, briefBackstory,
+            userId: new mongoose.Types.ObjectId(), // Generate a new ObjectId for the userId
+            
+        });
+        // Save the actor to the database
+        await actor.save();
+        if (actor) {
+            console.log('Actor generated and saved successfully:', actor);
+        } else {
+            console.log('Failed to generate actor.');
+        }
 
     } catch (error) {
         console.error('Error generating actor:', error);
     }
 }
 
-export async function generateActorProfileImage(build, height, hair, eyes, distinguished_features, style, age, gender, ethnicity, personality_traits, religion) {
+export async function generateActorProfileImage(build, height, hair, eyes, distinguished_features, style, age, gender, ethnicity, religion) {
     try {
-        const content = `Generate a 1:1 aspect ratio hyper-realistic display picture (DP) for instagram of a ${age} year old ${ethnicity} ${religion} ${gender} with physical appearance of: build: ${build},height: ${height}, hair: ${hair},eyes: ${eyes}, features: ${distinguished_features}, style: ${style}. The image should be realistic and suitable for a profile picture. Also add a nice and realistic background.`;
+        const content = `Generate a 1:1 aspect ratio hyperrealistic picture proper lightning and interesting pose for instagram of a ${age} year old ${ethnicity} ${religion} ${gender} with physical appearance of: build: ${build},height: ${height}, hair: ${hair},eyes: ${eyes}, features: ${distinguished_features}, style: ${style}. The image should be realistic and suitable for a profile picture. Also add a nice and realistic background.`;
         const response = await ai.models.generateContent({
             model: 'gemini-2.0-flash-preview-image-generation',
-            contents: content,
+            contents: process.env.stddev + content,
             config: {
                 responseModalities: [Modality.IMAGE, Modality.TEXT],
             }
@@ -64,7 +108,8 @@ export async function generateActorProfileImage(build, height, hair, eyes, disti
         const imageData = part.inlineData.data;
         const buffer = Buffer.from(imageData, "base64");
         fs.writeFileSync("gemini-native-image.png", buffer);
-        console.log("Image saved as gemini-native-image.png");
+        console.log("image generated");
+        return buffer;
         }
     }
 

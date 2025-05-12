@@ -67,9 +67,8 @@ app.get('/', async (req, res) => {
 });
 
 // Using the routes
-actorRoute(app);
+//await generateActorPersona();
 app.use('/api/posts', postRoutes); // Mount the post routes under /api/posts
-
 app.use('/api/users', userRoutes); // Mount the user routes under /api/users
 
 // Starting the server
