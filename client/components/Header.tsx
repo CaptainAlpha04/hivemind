@@ -17,8 +17,8 @@ return (
         <Link href="/support" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Support</Link>
     </nav>
 
-  
 </header>
+
 )
 }
 
