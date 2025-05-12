@@ -50,16 +50,14 @@ export default function Footer() {
             </p>
             
             <div className="flex flex-wrap justify-center gap-8">
-              <a href="#" className="text-slate-400 text-sm hover:text-teal-300 transition-colors duration-300">
+              <a href="/privacy" className="text-slate-400 text-sm hover:text-teal-300 transition-colors duration-300">
                 Privacy Policy
               </a>
-              <a href="#" className="text-slate-400 text-sm hover:text-teal-300 transition-colors duration-300">
+              <a href="/terms" className="text-slate-400 text-sm hover:text-teal-300 transition-colors duration-300">
                 Terms of Service
               </a>
-              <a href="#" className="text-slate-400 text-sm hover:text-teal-300 transition-colors duration-300">
-                Cookies
-              </a>
-              <a href="#" className="text-slate-400 text-sm hover:text-teal-300 transition-colors duration-300">
+              
+              <a href="/contact" className="text-slate-400 text-sm hover:text-teal-300 transition-colors duration-300">
                 Contact
               </a>
             </div>
