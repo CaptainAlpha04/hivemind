@@ -23,47 +23,27 @@ export default function AccountSettings() {
   const [emailSuccess, setEmailSuccess] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   
-  // Password strength state
   const [passwordStrength, setPasswordStrength] = useState(0);
   
-  // Password validation
   const validatePassword = (password: string) => {
     let strength = 0;
-    
     if (password.length >= 8) strength += 1;
     if (/[A-Z]/.test(password)) strength += 1;
     if (/[0-9]/.test(password)) strength += 1;
     if (/[^A-Za-z0-9]/.test(password)) strength += 1;
-    
     setPasswordStrength(strength);
   };
 
   const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // TODO: Implement email update logic
-    console.log('Email update:', emailForm);
-    
-    // Show success message
     setEmailSuccess(true);
-    
-    // Reset after 3 seconds
-    setTimeout(() => {
-      setEmailSuccess(false);
-    }, 3000);
+    setTimeout(() => setEmailSuccess(false), 3000);
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // TODO: Implement password update logic
-    console.log('Password update:', passwordForm);
-    
-    // Show success message
     setPasswordSuccess(true);
-    
-    // Reset after 3 seconds
-    setTimeout(() => {
-      setPasswordSuccess(false);
-    }, 3000);
+    setTimeout(() => setPasswordSuccess(false), 3000);
   };
 
   const handleNewPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +61,7 @@ export default function AccountSettings() {
             <div className="bg-teal-500/20 p-2 rounded-lg">
               <User className="h-7 w-7 text-teal-400" />
             </div>
-            <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">
+            <h2 className="text-3xl font-bold text-white">
               Account Settings
             </h2>
           </div>
@@ -92,7 +72,7 @@ export default function AccountSettings() {
         </div>
 
         {/* Email Change Form */}
-        <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-6 md:p-8 border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgba(20,184,166,0.12)] transition-all duration-300">
+        <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
           <div className="flex items-center gap-3 mb-6">
             <div className="bg-teal-500/10 p-2 rounded-lg">
               <Mail className="h-5 w-5 text-teal-400" />
@@ -100,68 +80,68 @@ export default function AccountSettings() {
             <h2 className="text-xl font-medium text-white">Change Email</h2>
           </div>
           
-          <form onSubmit={handleEmailSubmit} className="space-y-5">
-            <div className="group">
-              <label htmlFor="currentEmail" className="block text-sm font-medium text-zinc-300 mb-2">
-                Current Email
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  id="currentEmail"
-                  value={emailForm.currentEmail}
-                  onChange={(e) => setEmailForm({ ...emailForm, currentEmail: e.target.value })}
-                  className="input input-bordered w-full bg-zinc-800/70 border-teal-700 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                  placeholder="your.current@email.com"
-                />
-              </div>
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <div className="space-y-2">
+            <label className="input validator input-lg w-full">
+                    <i className='fi fi-br-at text-sm text-gray-500'></i>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="Old Email address"
+                      className='text-sm'
+                      value={emailForm.currentEmail}
+                      onChange={(e) => setEmailForm({ ...emailForm, currentEmail: e.target.value })}
+                    />
+                  </label>
             </div>
             
-            <div className="group">
-              <label htmlFor="newEmail" className="block text-sm font-medium text-zinc-300 mb-2">
-                New Email
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  id="newEmail"
-                  value={emailForm.newEmail}
-                  onChange={(e) => setEmailForm({ ...emailForm, newEmail: e.target.value })}
-                  className="input input-bordered w-full bg-zinc-800/70 border-teal-700 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                  placeholder="your.new@email.com"
-                />
-              </div>
+            <div className="space-y-2">
+            <label className="input validator input-lg w-full">
+                    <i className='fi fi-br-at text-sm text-gray-500'></i>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="New Email address"
+                      className='text-sm'
+                      value={emailForm.newEmail}
+                      onChange={(e) => setEmailForm({ ...emailForm, newEmail: e.target.value })}
+                    />
+                  </label>
             </div>
             
-            <div className="group">
-              <label htmlFor="emailPassword" className="block text-sm font-medium text-zinc-300 mb-2">
-                Current Password
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  id="emailPassword"
-                  value={emailForm.password}
-                  onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
-                  className="input input-bordered w-full bg-zinc-800/70 border-teal-700 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                  placeholder="••••••••••••"
-                />
-              </div>
+            <div className="space-y-2">
+            <label className="input validator input-lg w-full">
+                    <i className='fi fi-br-lock text-sm text-gray-500'></i>
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      required
+                      placeholder="Password"
+                      className='text-sm'
+                      value={emailForm.password}
+                      onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
+                    />
+                  </label>
             </div>
             
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
-                className={`btn px-6 py-3 rounded-xl font-medium text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/20 focus:ring-offset-2 focus:ring-offset-zinc-900
+                className={`btn px-6 py-2 rounded-lg font-medium text-white
                   ${emailSuccess 
-                    ? 'bg-emerald-500 hover:bg-emerald-600 border-none' 
-                    : 'bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 border-none shadow-lg shadow-teal-500/20'
+                    ? 'bg-emerald-500 hover:bg-emerald-600' 
+                    : 'bg-teal-500 hover:bg-teal-600'
                   }`}
               >
                 <div className="flex items-center gap-2">
                   {emailSuccess ? (
                     <>
-                      <Check className="w-5 h-5" />
+                      <Check className="w-4 h-4" />
                       <span>Email Updated</span>
                     </>
                   ) : (
@@ -174,115 +154,107 @@ export default function AccountSettings() {
         </div>
 
         {/* Password Change Form */}
-        <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-6 md:p-8 border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgba(16,185,129,0.12)] transition-all duration-300">
+        <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
           <div className="flex items-center gap-3 mb-6">
-            <div className="bg-emerald-500/10 p-2 rounded-lg">
-              <Lock className="h-5 w-5 text-emerald-400" />
+            <div className="bg-teal-500/10 p-2 rounded-lg">
+              <Lock className="h-5 w-5 text-teal-400" />
             </div>
             <h2 className="text-xl font-medium text-white">Change Password</h2>
           </div>
           
-          <form onSubmit={handlePasswordSubmit} className="space-y-5">
-            <div className="group">
-              <label htmlFor="currentPassword" className="block text-sm font-medium text-zinc-300 mb-2">
-                Current Password
-              </label>
-              <div className="relative">
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="input validator input-lg w-full flex items-center">
+                <i className='fi fi-br-lock text-sm text-gray-500'></i>
                 <input
-                  type={showCurrentPassword ? "text" : "password"}
                   id="currentPassword"
+                  name="currentPassword"
+                  type={showCurrentPassword ? "text" : "password"}
+                  required
+                  placeholder="Current Password"
+                  className='text-sm flex-1 bg-transparent border-none outline-none'
                   value={passwordForm.currentPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                  className="input input-bordered w-full bg-zinc-800/70 border-emerald-700 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all pr-12"
-                  placeholder="••••••••••••"
                 />
                 <button 
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-white transition-colors"
+                  className="ml-2 text-zinc-400 hover:text-white"
+                  tabIndex={-1}
                   onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                 >
-                  {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
-              </div>
-            </div>
-            
-            <div className="group">
-              <label htmlFor="newPassword" className="block text-sm font-medium text-zinc-300 mb-2">
-                New Password
               </label>
-              <div className="relative">
+            </div>
+
+            <div className="space-y-2">
+              <label className="input validator input-lg w-full flex items-center">
+                <i className='fi fi-br-lock text-sm text-gray-500'></i>
                 <input
-                  type={showNewPassword ? "text" : "password"}
                   id="newPassword"
+                  name="newPassword"
+                  type={showNewPassword ? "text" : "password"}
+                  required
+                  placeholder="New Password"
+                  className='text-sm flex-1 bg-transparent border-none outline-none'
                   value={passwordForm.newPassword}
                   onChange={handleNewPasswordChange}
-                  className="input input-bordered w-full bg-zinc-800/70 border-emerald-700 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all pr-12"
-                  placeholder="••••••••••••"
                 />
                 <button 
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-white transition-colors"
+                  className="ml-2 text-zinc-400 hover:text-white"
+                  tabIndex={-1}
                   onClick={() => setShowNewPassword(!showNewPassword)}
                 >
-                  {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
-              </div>
-              
+              </label>
               {passwordForm.newPassword && (
-                <div className="mt-2">
-                  <div className="flex gap-1 mt-1">
-                    {[...Array(4)].map((_, i) => (
-                      <div 
-                        key={i} 
-                        className={`h-1 flex-1 rounded-full transition-all ${
-                          i < passwordStrength 
-                            ? passwordStrength === 1 
-                              ? 'bg-red-500' 
-                              : passwordStrength === 2 
-                                ? 'bg-amber-500' 
-                                : passwordStrength === 3 
-                                  ? 'bg-emerald-500'
-                                  : 'bg-emerald-500'
-                            : 'bg-zinc-700'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-xs mt-1 text-zinc-400">
-                    {passwordStrength === 0 && "Very weak password"}
-                    {passwordStrength === 1 && "Weak password"}
-                    {passwordStrength === 2 && "Medium password"}
-                    {passwordStrength === 3 && "Strong password"}
-                    {passwordStrength === 4 && "Very strong password"}
-                  </p>
+                <div className="flex gap-1 mt-1">
+                  {[...Array(4)].map((_, i) => (
+                    <div 
+                      key={i} 
+                      className={`h-1 flex-1 rounded-full ${
+                        i < passwordStrength 
+                          ? passwordStrength === 1 
+                            ? 'bg-red-500' 
+                            : passwordStrength === 2 
+                              ? 'bg-amber-500' 
+                              : passwordStrength === 3 
+                                ? 'bg-teal-500'
+                                : 'bg-teal-500'
+                          : 'bg-zinc-700'
+                      }`}
+                    />
+                  ))}
                 </div>
               )}
             </div>
-            
-            <div className="group">
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-zinc-300 mb-2">
-                Confirm New Password
-              </label>
-              <div className="relative">
+
+            <div className="space-y-2">
+              <label className="input validator input-lg w-full flex items-center">
+                <i className='fi fi-br-lock text-sm text-gray-500'></i>
                 <input
-                  type={showConfirmPassword ? "text" : "password"}
                   id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  required
+                  placeholder="Confirm New Password"
+                  className='text-sm flex-1 bg-transparent border-none outline-none'
                   value={passwordForm.confirmPassword}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                  className="input input-bordered w-full bg-zinc-800/70 border-emerald-700 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all pr-12"
-                  placeholder="••••••••••••"
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                 />
                 <button 
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-white transition-colors"
+                  className="ml-2 text-zinc-400 hover:text-white"
+                  tabIndex={-1}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
-              </div>
-              
+              </label>
               {passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
-                <div className="flex items-center gap-1 mt-1 text-red-400 text-sm">
+                <div className="flex items-center gap-1 text-red-400 text-sm">
                   <AlertCircle className="w-4 h-4" />
                   <span>Passwords don&apos;t match</span>
                 </div>
@@ -292,10 +264,10 @@ export default function AccountSettings() {
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
-                className={`btn px-6 py-3 rounded-xl font-medium text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/20 focus:ring-offset-2 focus:ring-offset-zinc-900
+                className={`btn px-6 py-2 rounded-lg font-medium text-white
                   ${passwordSuccess 
-                    ? 'bg-emerald-500 hover:bg-emerald-600 border-none' 
-                    : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 border-none shadow-lg shadow-emerald-500/20'
+                    ? 'bg-emerald-500 hover:bg-emerald-600' 
+                    : 'bg-teal-500 hover:bg-teal-600'
                   }`}
                 disabled={
                   !passwordForm.currentPassword || 
@@ -307,7 +279,7 @@ export default function AccountSettings() {
                 <div className="flex items-center gap-2">
                   {passwordSuccess ? (
                     <>
-                      <Check className="w-5 h-5" />
+                      <Check className="w-4 h-4" />
                       <span>Password Updated</span>
                     </>
                   ) : (
@@ -319,10 +291,6 @@ export default function AccountSettings() {
           </form>
         </div>
       </div>
-      
-      {/* Background Elements */}
-      <div className="fixed -top-24 -right-24 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="fixed -bottom-32 -left-32 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
     </div>
   );
 }

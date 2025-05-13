@@ -24,6 +24,13 @@ export default function ProfileSettings() {
     }, 2000);
   };
 
+  const handleDisplayNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value.length <= 10) {
+      setDisplayName(value);
+    }
+  };
+
   const colors = [
     '#06b6d4', // Cyan
     '#8b5cf6', // Violet
@@ -32,12 +39,11 @@ export default function ProfileSettings() {
     '#10b981', // Emerald
   ];
 
-  return (
+  return(
     <div className="min-h-screen bg-black text-zinc-200 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
-     {/* Header */}
-     <div className="space-y-2">
+        <div className="space-y-2">
           <div className="flex items-center gap-3 mb-2">
             <div className="bg-teal-500/20 p-2 rounded-lg">
               <UserPen className="h-7 w-7 text-teal-400" />
@@ -64,14 +70,20 @@ export default function ProfileSettings() {
                   <User className="h-7 w-7 text-teal-400 size-18" />
                   Display Name
                 </label>
-                <p className="text-xs text-zinc-400">This is how others will see you</p>
-                <input
-                  type="text"
-                  id="displayName"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="input input-bordered w-full bg-zinc-900 border-teal-700 text-white rounded-lg py-2.5 px-4 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent transition-all"
-                />
+                <p className="text-xs text-zinc-400">This is how others will see you (max 10 characters)</p>
+                <div>
+                  <input
+                    type="text"
+                    id="displayName"
+                    value={displayName}
+                    onChange={handleDisplayNameChange}
+                    maxLength={10}
+                    className="input input-bordered input-lg w-full bg-zinc-900 border-teal-700 text-white"
+                  />
+                  <div className="text-xs text-zinc-500 text-right mt-1">
+                    {displayName.length}/10
+                  </div>
+                </div>
               </div>
               {/* Pronouns */}
               <div className="space-y-2">
@@ -86,7 +98,7 @@ export default function ProfileSettings() {
                   value={pronouns}
                   onChange={(e) => setPronouns(e.target.value)}
                   placeholder="Add your pronouns"
-                  className="input input-bordered w-full bg-zinc-900 border-teal-700 text-white rounded-lg py-2.5 px-4 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent transition-all"
+                  className="input input-bordered input-lg w-full bg-zinc-900 border-teal-700 text-white"
                 />
               </div>
               {/* Banner Color */}
@@ -102,7 +114,7 @@ export default function ProfileSettings() {
                       key={color}
                       type="button"
                       style={{ backgroundColor: color }}
-                      className={`w-8 h-8 rounded-full focus:outline-none focus:ring-2 focus:ring-white transition-all relative border-2 ${bannerColor === color ? 'border-teal-400' : 'border-transparent'}`}
+                      className={`w-8 h-8 rounded-full border-2 focus:outline-none transition-all relative ${bannerColor === color ? 'border-teal-400' : 'border-transparent'}`}
                       onClick={() => setBannerColor(color)}
                     >
                       {bannerColor === color && (
@@ -125,9 +137,9 @@ export default function ProfileSettings() {
                   id="about"
                   value={about}
                   onChange={(e) => setAbout(e.target.value)}
-                  rows={4}
+                  rows={8}
                   maxLength={190}
-                  className="input input-bordered w-full bg-zinc-900 border-teal-700 text-white rounded-lg py-2.5 px-4 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent transition-all resize-none"
+                  className="textarea textarea-bordered textarea-lg w-full bg-zinc-900 border-teal-700 text-white resize-none"
                 />
                 <div className="text-right text-xs text-zinc-500">{190 - about.length} characters remaining</div>
               </div>
@@ -211,7 +223,7 @@ export default function ProfileSettings() {
           <div className="flex justify-end pt-4">
             <button
               type="submit"
-              className={`btn px-6 py-2.5 rounded-lg font-medium text-white transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-white/20 
+              className={`btn btn-primary px-6 py-2.5 rounded-lg font-medium text-white transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-white/20 
                 ${saved
                   ? 'bg-emerald-500 hover:bg-emerald-600 border-none'
                   : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 border-none shadow-lg shadow-teal-500/20'
