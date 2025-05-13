@@ -14,7 +14,7 @@ return (
     <nav className="hidden md:flex space-x-8">
         <Link href="/home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Home</Link>
         <Link href="/explore" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Explore</Link>
-        <Link href="/support" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Support</Link>
+        <Link href="/contact" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Contact</Link>
     </nav>
 
 </header>
