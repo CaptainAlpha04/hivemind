@@ -4,18 +4,18 @@ import Footer from '@/components/Footer';
 
 const exploreData = [
   {
-    title: "AI Art Revolution",
-    description: "Discover how generative AI is transforming the world of digital art and creativity.",
+    title: "Tesla Autopilot Crashes",
+    description: "Tesla’s Autopilot feature has been involved in several crashes. Despite being marketed as a driver assistance system, drivers have relied too heavily on it, leading to accidents and fatalities.",
     button: "View"
   },
   {
-    title: "Viral: #TechForGood",
-    description: "See how people are using technology to make a positive impact in their communities.",
+    title: "Generative AI Blunders",
+    description: "In 2023, several generative AI models produced inappropriate and biased content, raising concerns about the ethical implications and the need for better content moderation.",
     button: "View"
   },
   {
     title: "Meet: Jane Doe",
-    description: "Top creator this week! Jane shares her journey in building a supportive online community.",
+    description: "Finally!! The identity of Joh Doe Finally Disclosed. Guess What!!! He is a humanoid currently run by OpenAI",
     button: "View"
   },
   {
@@ -24,8 +24,8 @@ const exploreData = [
     button: "Join"
   },
   {
-    title: "Trending: Virtual Hangouts",
-    description: "Explore the best virtual spaces to connect, play, and collaborate with friends.",
+    title: "Amazon’s Recruitment Tool",
+    description: "Amazon developed an AI recruitment tool that was found to be biased against women. The tool penalized resumes that included the word “women’s,” leading to gender discrimination in hiring practices.",
     button: "Explore"
   },
   {
