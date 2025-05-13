@@ -10,7 +10,7 @@ const exploreData = [
   },
   {
     title: "Generative AI Blunders",
-    description: "In 2023, several generative AI models produced inappropriate and biased content, raising concerns about the ethical implications and the need for better content moderation.",
+    description: "In 2025, several generative AI models produced inappropriate and biased content, raising concerns about the ethical implications and the need for better content moderation.",
     button: "View"
   },
   {
