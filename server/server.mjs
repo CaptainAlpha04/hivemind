@@ -21,7 +21,7 @@ dotenv.config();
 
 // Setting up the global variables
 const app = express();
-const port = process.env.PORT || 5001; // Update port to match suggested code
+const port = process.env.PORT || 5000; // Update port to match suggested code
 const mongoURI = process.env.MONGODB_URI;
 
 // --- Mongoose Connection Setup ---

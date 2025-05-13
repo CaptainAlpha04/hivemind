@@ -5,6 +5,8 @@ import bcrypt from 'bcrypt'; // For password hashing
 import User from '../model/user.mjs';
 import neo4jService from '../services/neo4jService.mjs';
 import { hash, compare } from 'bcrypt';
+import { sendVerificationEmail, sendWelcomeEmail } from '../services/emailService.mjs';
+import Token from '../model/token.mjs';
 
 const router = express.Router();
 
@@ -173,14 +175,14 @@ router.put('/profilePicture', upload.single('profilePicture'), async (req, res) 
 
 // Register endpoint
 router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, username } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Name, email and password are required' });
   }
 
   try {
-    // Check if user already exists with Mongoose
+    // Check if user already exists
     const existingUser = await User.findOne({ email });
     
     if (existingUser) {
@@ -193,18 +195,25 @@ router.post('/register', async (req, res) => {
     const newUser = new User({
       name,
       email,
-      username: email.split('@')[0] + Math.floor(Math.random() * 1000), // Generate a username
+      username: username || email.split('@')[0] + Math.floor(Math.random() * 1000),
       password: hashedPassword,
       authType: 'credentials',
+      verified: false, // Add this field to your User model
       createdAt: new Date(),
     });
 
-    await newUser.save();
+    const savedUser = await newUser.save();
     
-    console.log('User registered with ID:', newUser._id);
+    // Generate verification token
+    const token = await Token.generateVerificationToken(savedUser._id);
+    
+    // Send verification email
+    await sendVerificationEmail(email, name, token);
+    
+    console.log('User registered with ID:', savedUser._id);
     return res.status(201).json({ 
-      message: 'User registered successfully',
-      userId: newUser._id
+      message: 'User registered successfully. Please check your email to verify your account.',
+      userId: savedUser._id
     });
   } catch (error) {
     console.error('Error registering user:', error);
@@ -532,6 +541,45 @@ router.post('/unblock/:userIdToUnblock', async (req, res) => {
         console.error('Failed to unblock user:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
     }
+});
+
+// GET /api/users/verify-email/:token - Verify email
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    // Find the token in the database
+    const tokenDoc = await Token.findOne({ 
+      token, 
+      type: 'verification'
+    });
+    
+    if (!tokenDoc) {
+      return res.status(400).json({ message: 'Invalid or expired verification token' });
+    }
+    
+    // Find and update the user
+    const user = await User.findByIdAndUpdate(
+      tokenDoc.userId,
+      { verified: true },
+      { new: true }
+    );
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Delete the token
+    await Token.deleteOne({ _id: tokenDoc._id });
+    
+    // Send welcome email after verification
+    await sendWelcomeEmail(user.email, user.name);
+    
+    return res.status(200).json({ message: 'Email verified successfully' });
+  } catch (error) {
+    console.error('Error verifying email:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 export default router;

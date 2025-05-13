@@ -54,7 +54,13 @@ const userSchema = new mongoose.Schema({
     blockedUserIds: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
-    }]
+    }],
+
+    // Add verified field
+    verified: {
+        type: Boolean,
+        default: false
+    }
 }, { timestamps: true });
 
 // Middleware to sync user data to Neo4j after save

@@ -1,10 +1,9 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { useSession, signOut, signIn } from 'next-auth/react';
+import { useSession, signOut} from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
-import {ChevronRight, Zap} from 'lucide-react';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
 import Features from '@/components/home/Features';
