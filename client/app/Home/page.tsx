@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
@@ -43,8 +43,35 @@ export default function HomePage() {
         </div>
       </div>
     );
+  } else if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 to-slate-900">
+        <div className="text-center space-y-4"> 
+          <div className="relative">
+            <div className="animate-spin mb-4 h-16 w-16 border-4 border-teal-400/30 border-t-teal-400 rounded-full mx-auto"></div>
+            <div className="absolute inset-0 animate-pulse">
+              <div className="h-16 w-16 rounded-full bg-teal-400/10 blur-xl"></div>
+            </div>
+            </div>
+            <p className="text-teal-200 text-xl font-medium tracking-wide">Loading...</p>
+          </div>
+        </div>
+    );
+  } else if (status === "authenticated") {
+      return(
+        <>
+        {/* Temporary Feed page after login */}
+          <div>
+            <button
+              onClick={handleSignOut}
+              className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition"
+            >
+              Sign Out
+            </button>
+          </div>
+        </>
+      );
   }
-
   return (
     <div className="min-h-screen flex flex-col bg-[#0A0F1E]">
       <Header />
