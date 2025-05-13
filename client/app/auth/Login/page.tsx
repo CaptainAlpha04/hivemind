@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn as clientSignIn } from 'next-auth/react'; // For client components
 import { signInWithProvider } from '../actions'; // Keep this for OAuth
 import Header from '@/components/Header';
+import FooterAuth from '@/components/auth/FooterAuth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -134,7 +135,7 @@ export default function LoginPage() {
                     <label htmlFor="password" className="block text-sm font-medium text-slate-200">
                       Password
                     </label>
-                    <Link href="/auth/forgot-password" className="text-xs font-medium text-teal-400 hover:text-teal-300 transition-colors">
+                    <Link href="/auth/forgot" className="text-xs font-medium text-teal-400 hover:text-teal-300 transition-colors">
                       Forgot password?
                     </Link>
                   </div>
@@ -227,18 +228,7 @@ export default function LoginPage() {
       </main>
 
       {/* Footer - Clean and Modern */}
-      <footer className="w-full py-6 px-6 z-20 mt-auto">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
-          <div className="flex items-center space-x-2 mb-4 md:mb-0">
-            <span className="text-slate-400 text-sm">© 2025 HiveMind. All rights reserved.</span>
-          </div>
-          <div className="flex space-x-8">
-            <Link href="/privacy" className="text-slate-400 hover:text-teal-400 text-sm transition-colors">Privacy</Link>
-            <Link href="/terms" className="text-slate-400 hover:text-teal-400 text-sm transition-colors">Terms</Link>
-            <Link href="/help" className="text-slate-400 hover:text-teal-400 text-sm transition-colors">Help</Link>
-          </div>
-        </div>
-      </footer>
+ <FooterAuth />
     </div>
   );
 }
