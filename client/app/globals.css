@@ -135,4 +135,9 @@
     animation: gradient 3s ease infinite;
   }
 
+  .glow-border {
+    box-shadow:
+      0 0 24px 8px rgba(20, 184, 166, 0.4), /* teal glow */
+      0 4px 32px 0 rgba(0,0,0,0.2);          /* soft shadow */
+  }
   
