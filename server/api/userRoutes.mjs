@@ -140,13 +140,15 @@ router.get('/:userId/profilePicture', async (req, res) => {
 
 // PUT /api/users/profilePicture - Update current user's profile picture
 router.put('/profilePicture', upload.single('profilePicture'), async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
+    const { userId: userIdString } = req.body; // Get userId from body
 
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
+    if (!userIdString) { // Added: Check for userIdString
+        return res.status(400).json({ message: 'Missing userId in request body' });
     }
-    const userId = new mongoose.Types.ObjectId(userIdString.toString());
+    if (!mongoose.Types.ObjectId.isValid(userIdString)) { // Added: Validate userIdString
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    const userId = new mongoose.Types.ObjectId(userIdString);
     
     if (!req.file) {
         return res.status(400).json({ message: 'No profile picture provided' });
@@ -440,15 +442,15 @@ router.post('/login', async (req, res) => {
 
 // PUT /api/users/settings - Update user settings
 router.put('/settings', async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
+    const { receiveEmailNotifications, theme, userId: userIdString } = req.body; // Get userId from body
 
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
+    if (!userIdString) { // Added: Check for userIdString
+        return res.status(400).json({ message: 'Missing userId in request body' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(userIdString)) { // Added: Validate userIdString
+        return res.status(400).json({ message: 'Invalid user ID format' });
     }
     const userId = new mongoose.Types.ObjectId(userIdString);
-
-    const { receiveEmailNotifications, theme } = req.body;
 
     try {
         const user = await User.findById(userId);
@@ -475,14 +477,17 @@ router.put('/settings', async (req, res) => {
 
 // POST /api/users/follow/:userId - Follow a user
 router.post('/follow/:userId', async (req, res) => {
-    const session = req.auth;
-    const followerId = session?.user?.id ?? session?.user?.sub;
-
-    if (!session || !followerId) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-    
     const { userId: followeeId } = req.params;
+    const { followerId: followerIdString } = req.body; // Get followerId from body
+
+    if (!followerIdString) { // Added: Check for followerIdString
+        return res.status(400).json({ message: 'Missing followerId in request body' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(followerIdString)) { // Added: Validate followerIdString
+        return res.status(400).json({ message: 'Invalid followerId format' });
+    }
+    const followerId = followerIdString; // Use validated followerIdString
+
 
     if (!mongoose.Types.ObjectId.isValid(followeeId)) {
         return res.status(400).json({ message: 'Invalid user ID' });
@@ -533,14 +538,16 @@ router.post('/follow/:userId', async (req, res) => {
 
 // POST /api/users/unfollow/:userId - Unfollow a user
 router.post('/unfollow/:userId', async (req, res) => {
-    const session = req.auth;
-    const followerId = session?.user?.id ?? session?.user?.sub;
-
-    if (!session || !followerId) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-    
     const { userId: followeeId } = req.params;
+    const { followerId: followerIdString } = req.body; // Get followerId from body
+
+    if (!followerIdString) { // Added: Check for followerIdString
+        return res.status(400).json({ message: 'Missing followerId in request body' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(followerIdString)) { // Added: Validate followerIdString
+        return res.status(400).json({ message: 'Invalid followerId format' });
+    }
+    const followerId = followerIdString; // Use validated followerIdString
 
     if (!mongoose.Types.ObjectId.isValid(followeeId)) {
         return res.status(400).json({ message: 'Invalid user ID' });

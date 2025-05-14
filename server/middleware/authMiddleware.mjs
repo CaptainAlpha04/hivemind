@@ -1,5 +1,3 @@
-import { getSession } from '@auth/express';
-import { authConfig } from '../auth.config.mjs';
 import mongoose from 'mongoose';
 
 /**
@@ -24,175 +22,92 @@ const validateUserId = (id) => {
  * Populates req.auth with the session if authenticated
  */
 export const requireAuth = async (req, res, next) => {
-  try {
-    // 1. Attempt to get session from cookie (primary method)
-    const session = await getSession(req, authConfig);
+  // Bypassing all authentication checks
+  console.warn("Authentication is currently bypassed in requireAuth middleware. This should not be used in production.");
 
-    console.log(req.headers); // For debugging
-    console.log('Session cookie:', req.cookies); // For debugging
+  // Optionally, you can still try to get a userId from a header if you plan to pass it for non-auth purposes
+  const userIdFromHeader = req.headers['x-user-id']; // Example: use a custom header
 
-    console.log('Session:', session); // For debugging
-
-    if (session && session.user) {
-      if (session.user.id) {
-        const validatedId = validateUserId(session.user.id);
-        if (validatedId) {
-          session.user.id = validatedId;
-        } else {
-          console.warn(`Invalid user ID ('${session.user.id}') in session cookie. Access denied.`);
-          return res.status(401).json({ message: 'Invalid user ID in session cookie.' });
-        }
-      } else {
-        console.warn('User ID missing in session cookie. Access denied.');
-        return res.status(401).json({ message: 'User ID missing in session cookie.' });
-      }
-      
-      req.auth = session;
-      // console.log('Authenticated via session cookie.'); // For debugging
-      return next();
+  if (userIdFromHeader) {
+    const validatedId = validateUserId(userIdFromHeader);
+    if (validatedId) {
+      req.user = { id: validatedId }; // Set req.user instead of req.auth
+      console.log(`User ID '${validatedId}' provided in x-user-id header.`);
+    } else {
+      console.warn(`Invalid user ID '${userIdFromHeader}' provided in x-user-id header. Proceeding without user context.`);
+      req.user = null;
     }
-
-    // 2. If no cookie session, try Bearer token (fallback, if present)
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      // console.log('Attempting authentication via Bearer token.'); // For debugging
-      try {
-        let payload;
-        const parts = token.split('.');
-        if (parts.length === 3) { // Assumes JWS
-          const base64Payload = parts[1];
-          const base64 = base64Payload.replace(/-/g, '+').replace(/_/g, '/');
-          const padding = '='.repeat((4 - base64.length % 4) % 4);
-          let jsonPayload;
-          try {
-            jsonPayload = Buffer.from(base64 + padding, 'base64').toString('utf-8');
-          } catch (bufferError) {
-            console.error('Error during Buffer.from or toString for Bearer token payload:', bufferError);
-            return res.status(401).json({ message: 'Invalid Bearer token: payload decoding error.' });
-          }
-
-          try {
-            payload = JSON.parse(jsonPayload);
-          } catch (parseError) {
-            console.error('Failed to parse Bearer token JSON payload:', parseError);
-            console.debug('Problematic jsonPayload for Bearer token:', jsonPayload); // Log the string that failed parsing
-            return res.status(401).json({ message: 'Invalid Bearer token: malformed payload.' });
-          }
-
-        } else {
-          console.warn('Bearer token is not in expected JWT format (3 parts). Token:', token);
-          return res.status(401).json({ message: 'Invalid Bearer token: unexpected format.' });
-        }
-        
-        const userId = payload.sub || payload.id || payload.userId;
-        if (!userId) {
-          console.warn('No user ID (sub, id, userId) found in Bearer token payload:', payload);
-          return res.status(401).json({ message: 'User ID not found in Bearer token.' });
-        }
-        
-        const validatedId = validateUserId(userId);
-        if (!validatedId) {
-          console.warn(`Invalid MongoDB ID ('${userId}') in Bearer token. Access denied.`);
-          return res.status(400).json({ message: 'Invalid user ID format in Bearer token.' });
-        }
-        
-        req.auth = {
-          user: {
-            id: validatedId,
-            name: payload.name || 'User',
-            email: payload.email,
-            ...(payload.user || {}) // Spread other potential user details from token
-          }
-        };
-        // console.log('Authenticated via Bearer token.'); // For debugging
-        return next();
-      } catch (error) { // Catch any unexpected errors from Bearer token processing
-        console.error('Unexpected error during Bearer token processing:', error);
-        return res.status(401).json({ message: 'Invalid or unprocessable authorization token.' });
-      }
-    }
-    
-    // 3. If neither cookie session nor Bearer token authentication was successful
-    // console.log('No authentication method succeeded.'); // For debugging
-    return res.status(401).json({ message: 'Unauthorized - Please sign in. No valid session or token provided.' });
-
-  } catch (error) { // Catch errors from getSession or other top-level issues
-    console.error('Overall auth middleware error:', error);
-    return res.status(500).json({ message: 'Authentication processing error.' });
+  } else {
+    console.log("No x-user-id header provided. Proceeding without user context.");
+    req.user = null;
   }
+
+  return next();
 };
+
 
 /**
- * Middleware to optionally check authentication
- * Populates req.auth with the session if authenticated, but doesn't reject unauthenticated requests
+ * Middleware to simulate user authentication for development purposes.
+ * It expects a 'X-User-ID' header containing the MongoDB ObjectId of the user.
+ * If the header is present and valid, it populates `req.user` (or `req.auth.user` if you prefer).
+ * IMPORTANT: This is NOT secure and should ONLY be used in controlled development environments.
  */
-export const optionalAuth = async (req, res, next) => {
-  try {
-    // 1. Attempt to get session from cookie
-    const session = await getSession(req, authConfig);
-    if (session && session.user) {
-      if (session.user.id) {
-        const validatedId = validateUserId(session.user.id);
-        if (validatedId) {
-          session.user.id = validatedId;
-          req.auth = session; // Set req.auth only if ID is valid
-        } else {
-          console.warn(`Invalid user ID ('${session.user.id}') in optional auth session cookie. Proceeding without auth for this session.`);
-        }
-      } else {
-        // If user.id is not present, but session exists, we can still set req.auth
-        // if the presence of a session (even without a specific ID) is meaningful
-        req.auth = session;
-      }
-      return next();
-    }
+export const developmentAuthMiddleware = (req, res, next) => {
+  const userId = req.headers['x-user-id']; // Or 'authorization' if you want to send it as a Bearer token-like string
 
-    // 2. If no cookie session, try Bearer token (optional)
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      try {
-        let payload;
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const base64Payload = parts[1];
-          const base64 = base64Payload.replace(/-/g, '+').replace(/_/g, '/');
-          const padding = '='.repeat((4 - base64.length % 4) % 4);
-          let jsonPayload;
-          try {
-            jsonPayload = Buffer.from(base64 + padding, 'base64').toString('utf-8');
-            payload = JSON.parse(jsonPayload);
-
-            const userId = payload.sub || payload.id || payload.userId;
-            if (userId) {
-              const validatedId = validateUserId(userId);
-              if (validatedId) {
-                req.auth = {
-                  user: {
-                    id: validatedId,
-                    name: payload.name || 'User',
-                    email: payload.email,
-                    ...(payload.user || {})
-                  }
-                };
-              } else {
-                console.warn(`Invalid user ID ('${userId}') in optional auth Bearer token. Proceeding without auth for this token.`);
-              }
-            }
-          } catch (e) {
-            console.warn('Failed to decode/parse optional auth Bearer token, proceeding without auth:', e.message);
-          }
-        } else {
-            console.warn('Optional auth Bearer token not in JWT format, proceeding without auth.');
-        }
-      } catch (error) {
-        console.warn('Error processing optional auth Bearer token, proceeding without auth:', error.message);
-      }
-    }
-    return next(); // Always call next for optionalAuth
-  } catch (error) {
-    console.warn('Overall optionalAuth middleware error, proceeding without auth:', error.message);
-    next(); // Proceed without authentication in case of error
+  if (!userId) {
+    // Allow request to proceed without user context, or deny if user context is always required
+    // console.warn('AuthBypass: No X-User-ID header provided.');
+    // For routes that strictly need a user, you might return an error:
+    // return res.status(401).json({ message: 'AuthBypass: X-User-ID header is required for this route.' });
+    req.user = null; // Or req.auth = { user: null };
+    return next();
   }
+
+  if (mongoose.Types.ObjectId.isValid(userId)) {
+    req.user = { id: new mongoose.Types.ObjectId(userId) };
+    // Or, to mimic the structure of next-auth session more closely:
+    // req.auth = { user: { id: new mongoose.Types.ObjectId(userId) } };
+    // console.log(`AuthBypass: Authenticated as user ${userId}`);
+  } else {
+    // console.warn(`AuthBypass: Invalid X-User-ID format: ${userId}`);
+    // return res.status(400).json({ message: 'AuthBypass: Invalid X-User-ID format.' });
+    req.user = null; // Or req.auth = { user: null };
+  }
+  next();
 };
+
+
+// Keep authMiddleware as an alias for requireAuth or developmentAuthMiddleware
+// For complete removal of auth logic, point it to a pass-through middleware.
+// export const authMiddleware = requireAuth; // Original
+export const authMiddleware = developmentAuthMiddleware; // For development bypass
+
+// If you want to completely disable any auth logic processing and just pass through:
+// export const authMiddleware = (req, res, next) => next();
+
+
+/**
+ * Optional: Middleware to check if the authenticated user is an admin
+ * This would require you to have a way to identify admin users (e.g., a role field in your User model)
+ */
+// export const requireAdmin = (req, res, next) => {
+//   if (!req.auth || !req.auth.user) {
+//     return res.status(401).json({ message: 'Authentication required.' });
+//   }
+//   // Example: Check for an admin role (you'll need to fetch user details if not in session)
+//   // const user = await User.findById(req.auth.user.id);
+//   // if (user && user.role === 'admin') {
+//   //   return next();
+//   // }
+//   return res.status(403).json({ message: 'Admin access required.' });
+// };
+
+// Example of how you might have used it before:
+// router.get('/admin-only', requireAuth, requireAdmin, (req, res) => { ... });
+
+// After removing auth, such a route would need to be re-evaluated.
+// If you still need to differentiate users (e.g. by a role passed in a header),
+// you would adapt the logic. For now, this is commented out.
+
+console.log("Auth middleware module loaded. Current mode: Development Auth Bypass (expects X-User-ID header).");
