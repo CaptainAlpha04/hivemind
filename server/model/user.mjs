@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
         unique: true,
         index: true,
     },
-    bot: {
+    isBot: {
         type: Boolean,
         default: false
     },
@@ -77,7 +77,17 @@ const userSchema = new mongoose.Schema({
     verified: {
         type: Boolean,
         default: false
-    }
+    },
+    // Communities user is a member of
+    communities: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Community'
+    }],
+    // Communities user has created/moderates (can be derived or explicit)
+    moderatedCommunities: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Community'
+    }]
 }, { timestamps: true });
 
 // Middleware to sync user data to Neo4j after save

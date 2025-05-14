@@ -21,11 +21,10 @@ const upload = multer({ storage: storage, fileFilter: fileFilter });
 
 // POST /api/messages - Send a new message (handles text, image, and reply)
 router.post('/', upload.single('image'), async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
+    const { conversationId, content, replyToMessageId, userId: userIdString } = req.body; // Get userId from body
 
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
+    if (!userIdString) { 
+        return res.status(400).json({ message: 'Missing userId in request body' });
     }
 
     if (!mongoose.Types.ObjectId.isValid(userIdString)) {
@@ -33,9 +32,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
     const senderId = new mongoose.Types.ObjectId(userIdString);
 
-    // Include replyToMessageId from request body
-    const { conversationId, content, replyToMessageId } = req.body; // Get content from body
-    const imageFile = req.file; // Get file from req.file added by multer
+    const imageFile = req.file; 
 
     // Validate required fields: conversationId and EITHER content OR an image file
     if (!conversationId || (!content && !imageFile)) {
@@ -137,16 +134,16 @@ router.post('/', upload.single('image'), async (req, res) => {
 
 // POST /api/messages/:messageId/react - Add/Update/Remove a reaction to a message
 router.post('/:messageId/react', async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
+    const { messageId } = req.params;
+    const { emoji, userId: userIdString } = req.body; // Get userId from body
 
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
+    if (!userIdString) { 
+        return res.status(400).json({ message: 'Missing userId in request body' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(userIdString)) { 
+        return res.status(400).json({ message: 'Invalid user ID format' });
     }
     const userId = new mongoose.Types.ObjectId(userIdString);
-
-    const { messageId } = req.params;
-    const { emoji } = req.body; // emoji can be null/undefined to remove reaction
 
     if (!mongoose.Types.ObjectId.isValid(messageId)) {
         return res.status(400).json({ message: 'Invalid message ID format' });
@@ -231,11 +228,10 @@ router.get('/:messageId/image', async (req, res) => {
 
 // GET /api/chats - Fetch conversations using embedded last message
 router.get('/chats', async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
+    const { userId: userIdString } = req.query; // Get userId from query
 
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
+    if (!userIdString) { 
+        return res.status(400).json({ message: 'Missing userId in query parameters' });
     }
 
     if (!mongoose.Types.ObjectId.isValid(userIdString)) {

@@ -302,13 +302,175 @@ class Neo4jService {
       await session.executeWrite(tx => 
         tx.run('CREATE INDEX post_id IF NOT EXISTS FOR (p:Post) ON (p.id)')
       );
-      console.log('Neo4j indexes created successfully');
-    } catch (error) {
-      console.error('Error creating Neo4j indexes:', error);
+      // Add index for Community ID
+      await session.executeWrite(tx =>
+        tx.run('CREATE INDEX community_id IF NOT EXISTS FOR (c:Community) ON (c.id)')
+      );
     } finally {
       await session.close();
     }
   }
+
+  /**
+   * Create or update community node in Neo4j
+   * @param {Object} community - Community object from MongoDB
+   */
+  async syncCommunity(community) {
+    const session = driver.session();
+    try {
+      // Create or update community node
+      await session.executeWrite(tx =>
+        tx.run(
+          `MERGE (c:Community {id: $communityId})
+           ON CREATE SET c.name = $name, c.description = $description, c.isPrivate = $isPrivate, c.creatorId = $creatorId, c.createdAt = $createdAt
+           ON MATCH SET c.name = $name, c.description = $description, c.isPrivate = $isPrivate`,
+          {
+            communityId: community._id.toString(),
+            name: community.name,
+            description: community.description,
+            isPrivate: community.isPrivate,
+            creatorId: community.creator.toString(), // Assuming creator is an ObjectId
+            createdAt: community.createdAt ? community.createdAt.toISOString() : new Date().toISOString()
+          }
+        )
+      );
+
+      // Connect community to its creator (CREATED_COMMUNITY relationship)
+      await session.executeWrite(tx =>
+        tx.run(
+          `MATCH (u:User {id: $creatorId}), (c:Community {id: $communityId})
+           MERGE (u)-[:CREATED_COMMUNITY]->(c)`,
+          {
+            creatorId: community.creator.toString(),
+            communityId: community._id.toString()
+          }
+        )
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Create a MEMBER_OF relationship between a user and a community
+   * @param {string} userId - ID of the user
+   * @param {string} communityId - ID of the community
+   */
+  async createMembershipRelationship(userId, communityId) {
+    const session = driver.session();
+    try {
+      await session.executeWrite(tx =>
+        tx.run(
+          `MATCH (u:User {id: $userId}), (c:Community {id: $communityId})
+           MERGE (u)-[:MEMBER_OF]->(c)`,
+          { userId, communityId }
+        )
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Remove a MEMBER_OF relationship between a user and a community
+   * @param {string} userId - ID of the user
+   * @param {string} communityId - ID of the community
+   */
+  async removeMembershipRelationship(userId, communityId) {
+    const session = driver.session();
+    try {
+      await session.executeWrite(tx =>
+        tx.run(
+          `MATCH (u:User {id: $userId})-[r:MEMBER_OF]->(c:Community {id: $communityId})
+           DELETE r`,
+          { userId, communityId }
+        )
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Create a MODERATES relationship between a user and a community
+   * @param {string} userId - ID of the user (moderator)
+   * @param {string} communityId - ID of the community
+   */
+  async createModeratorRelationship(userId, communityId) {
+    const session = driver.session();
+    try {
+      await session.executeWrite(tx =>
+        tx.run(
+          `MATCH (u:User {id: $userId}), (c:Community {id: $communityId})
+           MERGE (u)-[:MODERATES]->(c)`,
+          { userId, communityId }
+        )
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Remove a MODERATES relationship between a user and a community
+   * @param {string} userId - ID of the user (moderator)
+   * @param {string} communityId - ID of the community
+   */
+  async removeModeratorRelationship(userId, communityId) {
+    const session = driver.session();
+    try {
+      await session.executeWrite(tx =>
+        tx.run(
+          `MATCH (u:User {id: $userId})-[r:MODERATES]->(c:Community {id: $communityId})
+           DELETE r`,
+          { userId, communityId }
+        )
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Connect a Post to a Community (POSTED_IN relationship)
+   * @param {string} postId - ID of the post
+   * @param {string} communityId - ID of the community
+   */
+  async addPostToCommunity(postId, communityId) {
+    const session = driver.session();
+    try {
+      await session.executeWrite(tx =>
+        tx.run(
+          `MATCH (p:Post {id: $postId}), (c:Community {id: $communityId})
+           MERGE (p)-[:POSTED_IN]->(c)`,
+          { postId, communityId }
+        )
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Remove a Post from a Community (POSTED_IN relationship)
+   * @param {string} postId - ID of the post
+   * @param {string} communityId - ID of the community
+   */
+  async removePostFromCommunity(postId, communityId) {
+    const session = driver.session();
+    try {
+      await session.executeWrite(tx =>
+        tx.run(
+          `MATCH (p:Post {id: $postId})-[r:POSTED_IN]->(c:Community {id: $communityId})
+           DELETE r`,
+          { postId, communityId }
+        )
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
 }
 
 export default new Neo4jService();

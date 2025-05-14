@@ -43,7 +43,6 @@ const postSchema = new mongoose.Schema({
     },
     content: {
         type: String,
-        required: true,
     },
     // Change image field to store an array of images
     images: [{ // Changed from 'image' to 'images' and made it an array
@@ -53,9 +52,17 @@ const postSchema = new mongoose.Schema({
     // Add visibility field
     visibility: {
         type: String,
-        enum: ['public', 'followers_only', 'private'],
+        enum: ['public', 'followers_only', 'private', 'community_only'], // Added 'community_only'
         default: 'public',
         required: true
+    },
+    community: { // Add community field
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Community',
+        index: true, // Index for faster queries on community posts
+        required: function() { // Required only if visibility is 'community_only'
+            return this.visibility === 'community_only';
+        }
     },
     likes: [{
         type: mongoose.Schema.Types.ObjectId,
