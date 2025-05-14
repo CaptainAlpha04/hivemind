@@ -1,16 +1,38 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Initialize Resend with your API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Configure nodemailer transporter with SMTP settings
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com', 
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  // Gmail specific settings
+  requireTLS: true,
+  tls: {
+    rejectUnauthorized: true
+  }
+});
+
+// For debugging
+transporter.verify(function(error, success) {
+  if (error) {
+    console.error('SMTP configuration error:', error);
+  } else {
+    console.log('SMTP server connection verified successfully');
+  }
+});
 
 // Send verification code for registration
 export async function sendVerificationCode(email, code) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'HiveMind <onboarding@resend.dev>',
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"HiveMind" <noreply@hivemind.com>',
       to: email,
       subject: 'Your HiveMind Verification Code',
       html: `
@@ -27,12 +49,7 @@ export async function sendVerificationCode(email, code) {
         </div>
       `,
     });
-
-    if (error) {
-      console.error('Error sending verification code:', error);
-      return false;
-    }
-
+    
     return true;
   } catch (error) {
     console.error('Error sending verification code:', error);
@@ -43,8 +60,8 @@ export async function sendVerificationCode(email, code) {
 // Send welcome email after successful registration
 export async function sendWelcomeEmail(email, name) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'HiveMind <onboarding@resend.dev>',
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"HiveMind" <noreply@hivemind.com>',
       to: email,
       subject: 'Welcome to HiveMind!',
       html: `
@@ -63,12 +80,7 @@ export async function sendWelcomeEmail(email, name) {
         </div>
       `,
     });
-
-    if (error) {
-      console.error('Error sending welcome email:', error);
-      return false;
-    }
-
+    
     return true;
   } catch (error) {
     console.error('Error sending welcome email:', error);
@@ -81,8 +93,8 @@ export async function sendVerificationEmail(email, name, token) {
   try {
     const verificationLink = `${process.env.CLIENT_URL}/auth/verify?token=${token}`;
     
-    const { data, error } = await resend.emails.send({
-      from: 'HiveMind <onboarding@resend.dev>',
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"HiveMind" <noreply@hivemind.com>',
       to: email,
       subject: 'Verify Your HiveMind Email',
       html: `
@@ -103,12 +115,7 @@ export async function sendVerificationEmail(email, name, token) {
         </div>
       `,
     });
-
-    if (error) {
-      console.error('Error sending verification email:', error);
-      return false;
-    }
-
+    
     return true;
   } catch (error) {
     console.error('Error sending verification email:', error);
@@ -119,8 +126,8 @@ export async function sendVerificationEmail(email, name, token) {
 // Send password reset code
 export async function sendPasswordResetCode(email, code) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'HiveMind <onboarding@resend.dev>',
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"HiveMind" <noreply@hivemind.com>',
       to: email,
       subject: 'Reset Your HiveMind Password',
       html: `
@@ -137,12 +144,7 @@ export async function sendPasswordResetCode(email, code) {
         </div>
       `,
     });
-
-    if (error) {
-      console.error('Error sending password reset code:', error);
-      return false;
-    }
-
+    
     return true;
   } catch (error) {
     console.error('Error sending password reset code:', error);
