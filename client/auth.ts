@@ -54,8 +54,8 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      // Only for OAuth providers
+    async signIn({ user, account, profile, email, credentials }) {
+      // Only handle OAuth providers here
       if (account?.provider === "google") {
         try {
           const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/oauth-user`, {
