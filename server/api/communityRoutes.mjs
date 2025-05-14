@@ -72,8 +72,7 @@ router.post('/', upload.fields([
 // GET /api/communities - Get all public communities (or communities user is part of if private)
 // Modified to accept a 'search' query parameter
 router.get('/', async (req, res) => {
-    const userId = req.query.userId
-    const { search } = req.query; // Get search query from request
+    const { search, userId } = req.query; // Get search query from request
 
     try {
         // Base query for public communities
@@ -119,7 +118,7 @@ router.get('/', async (req, res) => {
 // GET /api/communities/:communityId - Get a specific community by ID
 router.get('/:communityId', async (req, res) => {
     const { communityId } = req.params;
-    const userId = req.user?.id; // Using req.user.id due to auth removal
+    const userId = req.query.userId; // Using req.query.userId due to auth removal
 
     if (!mongoose.Types.ObjectId.isValid(communityId)) {
         return res.status(400).json({ message: 'Invalid community ID format' });
@@ -141,13 +140,6 @@ router.get('/:communityId', async (req, res) => {
                 return res.status(403).json({ message: 'You do not have permission to view this private community' });
             }
         }
-
-        // Get all posts for this community
-        const posts = await Post.find({ community: communityId })
-            .populate('userId', 'username profilePicture')
-            .populate('community', 'name')
-            .sort({ createdAt: -1 })
-            .select('-images.data'); // Exclude image data for list view
 
         res.status(200).json(community);
     } catch (error) {
@@ -244,7 +236,62 @@ router.post('/:communityId/leave', async (req, res) => {
 // GET /api/communities/:communityId/posts - Get all posts for a specific community
 router.get('/:communityId/posts', async (req, res) => {
     const { communityId } = req.params;
-    const userId = req.user?.id; // Using req.user.id due to auth removal
+    const userId = req.query.userId; // Using req.query.userId due to auth removal
+
+    if (!mongoose.Types.ObjectId.isValid(communityId)) {
+        return res.status(400).json({ message: 'Invalid community ID format' });
+    }
+
+    try {
+        const community = await Community.findById(communityId).select('isPrivate members'); // Select only necessary fields
+        if (!community) {
+            return res.status(404).json({ message: 'Community not found' });
+        }
+
+        // Check access for private communities
+        if (community.isPrivate) {
+            if (!userId || !community.members.some(memberId => memberId.equals(userId))) {
+                return res.status(403).json({ message: 'You do not have permission to view posts in this private community' });
+            }
+        }
+
+        // Fetch posts that belong to this community and have visibility 'community_only' or 'public' (if you want public posts to also appear here)
+        // For strict community-only posts:
+        const posts = await Post.find({
+            community: communityId,
+            // visibility: 'community_only' // Uncomment if posts *must* be marked community_only
+            // Or, if public posts can also be associated and shown within a community context:
+            $or: [
+                { community: communityId, visibility: 'community_only' },
+                // { community: communityId, visibility: 'public' } // If public posts can also be listed under a community
+            ]
+        })
+        .populate('userId', 'username profilePicture') // Populate post author details
+        .populate('community', 'name') // Populate community name (optional, as we are in community context)
+        .sort({ createdAt: -1 })
+        .select('-images.data'); // Exclude image data for list view
+
+        // Map posts to include hasImages similar to the main post feed
+        const postsWithImageData = posts.map(post => {
+            const postObject = post.toObject();
+            postObject.hasImages = post.images && post.images.length > 0;
+            if (postObject.images) {
+                postObject.images = postObject.images.map(img => ({ contentType: img.contentType, _id: img._id }));
+            }
+            return postObject;
+        });
+
+        res.status(200).json(postsWithImageData);
+    } catch (error) {
+        console.error('Error fetching posts for community:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// GET /api/communities/:communityId/posts - Get all posts for a specific community
+router.get('/:communityId/posts/', async (req, res) => {
+    const { communityId } = req.params;
+    const userId = req.query.userId; // Using req.query.userId due to auth removal
 
     if (!mongoose.Types.ObjectId.isValid(communityId)) {
         return res.status(400).json({ message: 'Invalid community ID format' });
