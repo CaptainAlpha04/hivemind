@@ -45,11 +45,11 @@ const postSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    // Add image field back for BLOB storage
-    image: {
+    // Change image field to store an array of images
+    images: [{ // Changed from 'image' to 'images' and made it an array
         data: Buffer, // Store image data as Buffer (BLOB)
         contentType: String // Store MIME type
-    },
+    }],
     // Add visibility field
     visibility: {
         type: String,
