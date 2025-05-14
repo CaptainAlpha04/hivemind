@@ -3,16 +3,20 @@ import mongoose from 'mongoose';
 import Community from '../model/community.mjs';
 import Post from '../model/post.mjs';
 import User from '../model/user.mjs'; // Needed for adding user to community members/moderators
-import { authMiddleware } from '../middleware/authMiddleware.mjs'; // Assuming you have this
+import multer from 'multer'; // Assuming you are using multer for file uploads
 
 const router = express.Router();
+const upload = multer(); // Configure multer for file uploads
 
 // --- Community Management Endpoints ---
 
 // POST /api/communities - Create a new community
-router.post('/', authMiddleware, async (req, res) => {
-    const { name, description, isPrivate } = req.body;
-    const creatorId = req.auth?.user?.id;
+router.post('/', upload.fields([
+    { name: 'profilePicture', maxCount: 1 }, // Assuming you want to upload a profile picture
+    { name: 'bannerImage', maxCount: 1 } // Assuming you want to upload a banner image
+]) ,async (req, res) => {
+    const { name, description, isPrivate, userId } = req.body;
+    const creatorId = userId;
 
     if (!creatorId || !mongoose.Types.ObjectId.isValid(creatorId)) {
         return res.status(401).json({ message: 'User not authenticated or invalid ID' });
@@ -28,12 +32,24 @@ router.post('/', authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'A community with this name already exists' });
         }
 
+        const profilePic = req.files['profilePic'] ? req.files['profilePic'][0] : null;
+        const bannerImage = req.files['bannerImage'] ? req.files['bannerImage'][0] : null;
+
         const community = new Community({
             name,
             description,
             creator: creatorId,
             isPrivate: isPrivate || false,
             // moderators and members will be automatically populated with creator via schema pre-save hook
+            profilePic: profilePic ? {
+                data: profilePic.buffer,
+                contentType: profilePic.mimetype
+            } : null,
+
+            bannerImage: bannerImage ? {
+                data: bannerImage.buffer,
+                contentType: bannerImage.mimetype
+            } : null
         });
 
         await community.save();
@@ -55,9 +71,8 @@ router.post('/', authMiddleware, async (req, res) => {
 
 // GET /api/communities - Get all public communities (or communities user is part of if private)
 // Modified to accept a 'search' query parameter
-router.get('/', authMiddleware, async (req, res) => {
-    const userId = req.user?.id; // Using req.user.id due to auth removal
-    const { search } = req.query; // Get search query from request
+router.get('/', async (req, res) => {
+    const { search, userId } = req.query; // Get search query from request
 
     try {
         // Base query for public communities
@@ -101,9 +116,9 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // GET /api/communities/:communityId - Get a specific community by ID
-router.get('/:communityId', authMiddleware, async (req, res) => {
+router.get('/:communityId', async (req, res) => {
     const { communityId } = req.params;
-    const userId = req.user?.id; // Using req.user.id due to auth removal
+    const userId = req.query.userId; // Using req.query.userId due to auth removal
 
     if (!mongoose.Types.ObjectId.isValid(communityId)) {
         return res.status(400).json({ message: 'Invalid community ID format' });
@@ -136,9 +151,8 @@ router.get('/:communityId', authMiddleware, async (req, res) => {
 // --- Community Membership Endpoints ---
 
 // POST /api/communities/:communityId/join - Join a community
-router.post('/:communityId/join', authMiddleware, async (req, res) => {
-    const { communityId } = req.params;
-    const userId = req.user?.id; // Using req.user.id due to auth removal
+router.post('/:communityId/join', async (req, res) => {
+    const { communityId, userId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(communityId)) { // Removed userId validation as it's optional now
         return res.status(400).json({ message: 'Invalid community ID format' });
@@ -175,9 +189,8 @@ router.post('/:communityId/join', authMiddleware, async (req, res) => {
 });
 
 // POST /api/communities/:communityId/leave - Leave a community
-router.post('/:communityId/leave', authMiddleware, async (req, res) => {
-    const { communityId } = req.params;
-    const userId = req.user?.id; // Using req.user.id due to auth removal
+router.post('/:communityId/leave', async (req, res) => {
+    const { communityId, userId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(communityId)) { // Removed userId validation
         return res.status(400).json({ message: 'Invalid community ID format' });
@@ -221,9 +234,64 @@ router.post('/:communityId/leave', authMiddleware, async (req, res) => {
 // --- Community Posts Endpoints ---
 
 // GET /api/communities/:communityId/posts - Get all posts for a specific community
-router.get('/:communityId/posts', authMiddleware, async (req, res) => {
+router.get('/:communityId/posts', async (req, res) => {
     const { communityId } = req.params;
-    const userId = req.user?.id; // Using req.user.id due to auth removal
+    const userId = req.query.userId; // Using req.query.userId due to auth removal
+
+    if (!mongoose.Types.ObjectId.isValid(communityId)) {
+        return res.status(400).json({ message: 'Invalid community ID format' });
+    }
+
+    try {
+        const community = await Community.findById(communityId).select('isPrivate members'); // Select only necessary fields
+        if (!community) {
+            return res.status(404).json({ message: 'Community not found' });
+        }
+
+        // Check access for private communities
+        if (community.isPrivate) {
+            if (!userId || !community.members.some(memberId => memberId.equals(userId))) {
+                return res.status(403).json({ message: 'You do not have permission to view posts in this private community' });
+            }
+        }
+
+        // Fetch posts that belong to this community and have visibility 'community_only' or 'public' (if you want public posts to also appear here)
+        // For strict community-only posts:
+        const posts = await Post.find({
+            community: communityId,
+            // visibility: 'community_only' // Uncomment if posts *must* be marked community_only
+            // Or, if public posts can also be associated and shown within a community context:
+            $or: [
+                { community: communityId, visibility: 'community_only' },
+                // { community: communityId, visibility: 'public' } // If public posts can also be listed under a community
+            ]
+        })
+        .populate('userId', 'username profilePicture') // Populate post author details
+        .populate('community', 'name') // Populate community name (optional, as we are in community context)
+        .sort({ createdAt: -1 })
+        .select('-images.data'); // Exclude image data for list view
+
+        // Map posts to include hasImages similar to the main post feed
+        const postsWithImageData = posts.map(post => {
+            const postObject = post.toObject();
+            postObject.hasImages = post.images && post.images.length > 0;
+            if (postObject.images) {
+                postObject.images = postObject.images.map(img => ({ contentType: img.contentType, _id: img._id }));
+            }
+            return postObject;
+        });
+
+        res.status(200).json(postsWithImageData);
+    } catch (error) {
+        console.error('Error fetching posts for community:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// GET /api/communities/:communityId/posts - Get all posts for a specific community
+router.get('/:communityId/posts/', async (req, res) => {
+    const { communityId } = req.params;
+    const userId = req.query.userId; // Using req.query.userId due to auth removal
 
     if (!mongoose.Types.ObjectId.isValid(communityId)) {
         return res.status(400).json({ message: 'Invalid community ID format' });
