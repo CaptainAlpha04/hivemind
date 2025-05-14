@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import Link from 'next/link';
-import Header from '@/components/Header';
+import Header from '@/components/ui/Navbar';
 import { useRouter } from 'next/navigation';
 import FooterAuth from '@/components/auth/FooterAuth';
 import { signIn } from 'next-auth/react'; // Import signIn for OAuth
