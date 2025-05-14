@@ -1,5 +1,5 @@
 import React from 'react'
-import Header from '@/components/ui/Navbar'
+import Navbar from '@/components/ui/Navbar'
 import Hero from '@/components/home/Hero'
 import Footer from '@/components/ui/Footer'
 import Features from '@/components/home/Features'
@@ -11,7 +11,7 @@ import Cts from '@/components/home/Cts'
 function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col bg-[#0A0F1E]">
-      <Header />
+      <Navbar />
       
       {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
