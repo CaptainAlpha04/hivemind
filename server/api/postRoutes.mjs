@@ -21,9 +21,6 @@ const upload = multer({ storage: storage, fileFilter: fileFilter });
 // POST /api/posts - Create a new post
 // Use upload.array('images') middleware to handle multiple file uploads with field name 'images'
 router.post('/', upload.array('images', 5), async (req, res) => { // userId will be passed in req.body instead of relying on auth session
-    // const session = req.auth; // Removed: No longer relying on session populated by auth middleware for userId
-    // const userIdFromAuth = session?.user?.id; // Removed: userId will come from req.body
-
     const { heading, content, visibility, userId } = req.body; // Destructure userId directly from req.body
     const imageFiles = req.files; // Get files from req.files added by multer
 
@@ -34,7 +31,7 @@ router.post('/', upload.array('images', 5), async (req, res) => { // userId will
     }
 
     // Validate required fields
-    if (!heading || !content) {
+    if (!heading) {
         return res.status(400).json({ message: 'Missing required fields: heading and content' });
     }    // Optional: Validate visibility if provided, or rely on schema default
     // Map frontend visibility values to backend values

@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import Header from '@/components/ui/Header';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
-import Header from '@/components/ui/Navbar';
 
 export default function SettingsLayout({
   children,

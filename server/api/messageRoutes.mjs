@@ -19,13 +19,94 @@ const fileFilter = (req, file, cb) => {
 };
 const upload = multer({ storage: storage, fileFilter: fileFilter });
 
+// GET /api/conversations - Get all conversations for a user
+router.get('/conversations', async (req, res) => {
+    const { userId: userIdString } = req.query;
+
+    if (!userIdString) {
+        return res.status(400).json({ message: 'Missing userId in query parameters' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userIdString)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    const userId = new mongoose.Types.ObjectId(userIdString);
+
+    try {
+        // Optimized: Fetch user and populate conversationIds
+        const user = await User.findById(userId).populate({
+            path: 'conversationIds',
+            options: { sort: { 'updatedAt': -1 } } // Sort conversations by updatedAt
+        }).lean();
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        return res.status(200).json(user.conversationIds);
+    } catch (error) {
+        console.error('Failed to fetch conversations:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// GET /api/conversations/:conversationId/messages - Get all messages for a conversation
+router.get('/conversations/:conversationId/messages', async (req, res) => {
+    const { conversationId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        return res.status(400).json({ message: 'Invalid conversation ID format' });
+    }
+
+    try {
+        const conversation = await Conversation.findById(conversationId).lean();
+
+        if (!conversation) {
+            return res.status(404).json({ message: 'Conversation not found' });
+        }
+
+        const messages = await Message.find({ conversationId: conversationId })
+            .sort({ createdAt: 1 })
+            .lean();
+
+        // Extract senderIds from conversation participants and messages
+        const senderIds = Array.from(new Set([
+            conversation.participants.map(p => p.toString()),
+            messages.map(message => message.senderId.toString())
+        ].flat()));
+
+        // Fetch user images for all senders
+        const users = await User.find({ _id: { $in: senderIds } }).select('profilePicture').lean();
+
+        // Create a map of userId to user image data
+        const userImages = {};
+        users.forEach(user => {
+            userImages[user._id.toString()] = user.profilePicture ? {
+                data: user.profilePicture.data.toString('base64'),
+                contentType: user.profilePicture.contentType
+            } : null;
+        });
+
+        // Structure the response
+        const response = {
+            messages: messages,
+            userImages: userImages
+        };
+
+        return res.status(200).json(response);
+    } catch (error) {
+        console.error('Failed to fetch messages:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
 // POST /api/messages - Send a new message (handles text, image, and reply)
 router.post('/', upload.single('image'), async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
+    const { conversationId, content, replyToMessageId, userId: userIdString } = req.body; // Get userId from body
 
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
+    if (!userIdString) {
+        return res.status(400).json({ message: 'Missing userId in request body' });
     }
 
     if (!mongoose.Types.ObjectId.isValid(userIdString)) {
@@ -33,9 +114,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
     const senderId = new mongoose.Types.ObjectId(userIdString);
 
-    // Include replyToMessageId from request body
-    const { conversationId, content, replyToMessageId } = req.body; // Get content from body
-    const imageFile = req.file; // Get file from req.file added by multer
+    const imageFile = req.file;
 
     // Validate required fields: conversationId and EITHER content OR an image file
     if (!conversationId || (!content && !imageFile)) {
@@ -112,6 +191,9 @@ router.post('/', upload.single('image'), async (req, res) => {
         };
         await conversation.save();
 
+        // Update user's conversationIds array
+        await User.findByIdAndUpdate(senderId, { $addToSet: { conversationIds: conversationId } });
+
         // 6. Prepare and return the response (don't send image buffer back)
         const messageResponse = newMessage.toObject();
         if (messageResponse.image) {
@@ -127,7 +209,7 @@ router.post('/', upload.single('image'), async (req, res) => {
         console.error('Failed to send message:', error);
         // Handle multer errors specifically (like wrong file type)
         if (error instanceof multer.MulterError) {
-             return res.status(400).json({ message: `Multer error: ${error.message}` });
+            return res.status(400).json({ message: `Multer error: ${error.message}` });
         } else if (error.message === 'Not an image! Please upload only images.') {
             return res.status(400).json({ message: error.message });
         }
@@ -137,16 +219,16 @@ router.post('/', upload.single('image'), async (req, res) => {
 
 // POST /api/messages/:messageId/react - Add/Update/Remove a reaction to a message
 router.post('/:messageId/react', async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
+    const { messageId } = req.params;
+    const { emoji, userId: userIdString } = req.body; // Get userId from body
 
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
+    if (!userIdString) {
+        return res.status(400).json({ message: 'Missing userId in request body' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(userIdString)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
     }
     const userId = new mongoose.Types.ObjectId(userIdString);
-
-    const { messageId } = req.params;
-    const { emoji } = req.body; // emoji can be null/undefined to remove reaction
 
     if (!mongoose.Types.ObjectId.isValid(messageId)) {
         return res.status(400).json({ message: 'Invalid message ID format' });
@@ -231,11 +313,10 @@ router.get('/:messageId/image', async (req, res) => {
 
 // GET /api/chats - Fetch conversations using embedded last message
 router.get('/chats', async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
+    const { userId: userIdString } = req.query; // Get userId from query
 
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
+    if (!userIdString) {
+        return res.status(400).json({ message: 'Missing userId in query parameters' });
     }
 
     if (!mongoose.Types.ObjectId.isValid(userIdString)) {
@@ -255,11 +336,11 @@ router.get('/chats', async (req, res) => {
         const conversations = await Conversation.find({
             _id: { $in: user.conversationIds }
         })
-        .sort({ updatedAt: -1 }) // Sort by when the conversation was last updated
-        // Optional: Populate participant details if needed for the UI
-        // .populate('participants', 'username profilePicture')
-        // The last message sender username is already embedded if updated correctly
-        .lean(); // Use lean for performance as we are just reading data
+            .sort({ updatedAt: -1 }) // Sort by when the conversation was last updated
+            // Optional: Populate participant details if needed for the UI
+            // .populate('participants', 'username profilePicture')
+            // The last message sender username is already embedded if updated correctly
+            .lean(); // Use lean for performance as we are just reading data
 
         // The 'lastMessage.content' should already contain "Media" if applicable
         // based on the logic when the message was created/conversation updated.

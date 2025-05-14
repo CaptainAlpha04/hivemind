@@ -4,9 +4,9 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose'; // Import Mongoose
 import { ExpressAuth } from "@auth/express"; // Fixed import to use ExpressAuth instead of Auth
 import { authConfig } from './auth.config.mjs'; // Ensure this path is correct
-import { requireAuth, optionalAuth } from './middleware/authMiddleware.mjs'; // Import our auth middleware
 import postRoutes from './api/postRoutes.mjs'; // Import the new post routes
 import userRoutes from './api/userRoutes.mjs'; // New import for user routes
+import communityRoutes from './api/communityRoutes.mjs'; // Import community routes
 import chatRoutes from './api/chatRoutes.mjs'; // New import for consolidated chat routes
 import recommendationRoutes from './api/recommendationRoutes.mjs'; // Import recommendation routes
 import botRoutes from './api/botRoutes.mjs'; // Add import for bot routes
@@ -68,10 +68,11 @@ app.get('/', async (req, res) => {
 });
 
 // Using the routes
-//await generateActorPersona();
-// Apply our custom auth middleware to API routes that need authentication
 app.use('/api/posts', postRoutes); // Protected route - authentication required
-app.use('/api/users', optionalAuth, userRoutes); // Some endpoints may be public
+app.use('/api/users', userRoutes); // Some endpoints may be public
+app.use('/api/communities', communityRoutes); // Community routes
+app.use('/api/chats', chatRoutes); // Chat routes
+app.use('/api/recommendations', recommendationRoutes); // Recommendation routes
 
 // Starting the server
 app.listen(port, () => {
