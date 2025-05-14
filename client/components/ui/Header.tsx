@@ -38,10 +38,10 @@ const Header = () => {
       <div className="flex items-center gap-3">
       
         <button className="btn btn-circle btn-ghost border-none tooltip tooltip-bottom" data-tip="Chat">
-          <div className="indicator">
+          <Link href="/chat" className="indicator">
             <MessageSquare className="text-base-content" size={18} />
             <span className="badge badge-xs badge-primary indicator-item">{}</span>
-          </div>
+          </Link>
         </button>
 
         <button className="btn btn-circle btn-ghost border-none tooltip tooltip-bottom" data-tip="Notifications">
