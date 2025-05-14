@@ -36,7 +36,6 @@ const ProfileDropdown = () => {
         <div className="px-2 py-2 mb-2 border-b border-white/10">
           <div className="font-semibold text-base">{session?.user.name}</div>
           <div className="text-primary text-xs">{session?.user?.email}</div>
-          <div className="text-xs text-gray-400">{session?.user?.id}</div>
         </div>
         <li>
           <a className="flex items-center hover:text-primary hover:hover:bg-gray-700/20">
