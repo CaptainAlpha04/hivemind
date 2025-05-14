@@ -1,3 +1,15 @@
+<<<<<<< HEAD
+import HivePage from '@/components/hives/feed'
+import React from 'react'
+
+export default function page() {
+  return (
+    <div>
+    <HivePage />
+    </div>
+  )
+}
+=======
 "use client";
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
@@ -268,3 +280,4 @@ export default function HivesPage() {
     </div>
   );
 } 
+>>>>>>> c59cbc6731103cb5019c3971ce0ba4b0e432e69d

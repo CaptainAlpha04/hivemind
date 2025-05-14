@@ -1,39 +1,101 @@
 'use client';
-import { useState, useRef, FormEvent } from 'react';
+import { useState, useRef, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react'; // Import useSession
-import { PenLine, Eye, Users, Lock, ImageIcon } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { PenLine, Eye, Users, Lock, ImageIcon, X, ChevronDown, Hash } from 'lucide-react';
 import Footer from '@/components/ui/Footer';
-import Header from '@/components/ui/Navbar';
+import Header from '@/components/ui/Header';
+import Sidebar from '@/components/ui/Sidebar';
 
 export default function CreatePostPage() {
   const router = useRouter();
-  const { data: session, status } = useSession(); // Get session data and status
+  const { data: session, status } = useSession();
   const [heading, setHeading] = useState('');
   const [content, setContent] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'Communities' | 'private'>('public');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showCommunityDropdown, setShowCommunityDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const communityDropdownRef = useRef<HTMLDivElement>(null);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
+  const [communities, setCommunities] = useState<{id: string, name: string}[]>([]);
+  const [isLoadingCommunities, setIsLoadingCommunities] = useState(false);
+  
+  const MAX_IMAGES = 5;
+
+  // Fetch communities when component mounts
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchCommunities();
+    }
+  }, [status]);
+
+  const fetchCommunities = async () => {
+    setIsLoadingCommunities(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/communities`, {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCommunities(data);
+      } else {
+        console.error('Failed to fetch communities');
+      }
+    } catch (error) {
+      console.error('Error fetching communities:', error);
+    } finally {
+      setIsLoadingCommunities(false);
+    }
+  };
 
   // Handle dropdown visibility
   const toggleDropdown = () => setShowDropdown((v) => !v);
+  const toggleCommunityDropdown = () => setShowCommunityDropdown((v) => !v);
 
   // Handle image selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setImages(files);
-    // Generate previews
-    const readers = files.map(file => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
+    
+    if (files.length + images.length > MAX_IMAGES) {
+      document.getElementById('image-limit-modal')?.classList.add('modal-open');
+      const allowedFiles = files.slice(0, MAX_IMAGES - images.length);
+      
+      // Generate previews for allowed files
+      const readers = allowedFiles.map(file => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
       });
-    });
-    Promise.all(readers).then(setImagePreviews);
+      
+      Promise.all(readers).then(newPreviews => {
+        setImages(prev => [...prev, ...allowedFiles]);
+        setImagePreviews(prev => [...prev, ...newPreviews]);
+      });
+    } else {
+      setImages(prev => [...prev, ...files]);
+      
+      // Generate previews
+      const readers = files.map(file => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+      });
+      
+      Promise.all(readers).then(newPreviews => {
+        setImagePreviews(prev => [...prev, ...newPreviews]);
+      });
+    }
   };
 
   // Remove a selected image
@@ -61,16 +123,16 @@ export default function CreatePostPage() {
   // Handler for form submission
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     if (status === 'loading') {
       console.log('Authentication status loading...');
       return;
     }
 
-    // Check for accessToken specifically
     if (status !== 'authenticated' || !session?.user?.accessToken) { 
-      console.error('User not authenticated or access token not available.');
-      alert('You must be logged in to create a post, or your session is missing an access token.');
+      setIsSubmitting(false);
+      document.getElementById('auth-error-modal')?.classList.add('modal-open');
       return;
     }
 
@@ -78,229 +140,370 @@ export default function CreatePostPage() {
     formData.append('heading', heading);
     formData.append('content', content);
     formData.append('visibility', visibility);
-    if (session?.user?.id) { // Ensure userId is available
+    
+    if (selectedCommunity) {
+      formData.append('communityId', selectedCommunity);
+    }
+    
+    if (session?.user?.id) {
       formData.append('userId', session.user.id);
     } else {
-      console.error('User ID not found in session.');
-      alert('Your session is missing a user ID. Cannot create post.');
+      setIsSubmitting(false);
+      document.getElementById('auth-error-modal')?.classList.add('modal-open');
       return;
     }
+    
     images.forEach((img) => {
       formData.append('images', img);
     });
-    // Implement form submission logic here
-    console.log('Form submitted:', { heading, content, visibility, images });
-    // Example: await fetch('/api/posts', { method: 'POST', body: formData });    // Print what we know about the API URL and session
-    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
-    console.log('Session user:', session.user);
     
-    // Use consistent API URL format
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';    // Match the endpoint in postRoutes.mjs
-    const response = await fetch(`${apiUrl}/api/posts`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        // 'Authorization': `Bearer ${session.user.accessToken}`, // Removed to rely on cookie-based auth
-      },
-      credentials: 'include', // Important: This sends cookies with the request
-    });
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/posts`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
 
-    if (response.ok) {
-      const data = await response.json();
-      console.log('Post created:', data);
-      router.push('/posts');
-    } else {
-      console.error('Error creating post:', response.statusText);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Post created:', data);
+        document.getElementById('success-modal')?.classList.add('modal-open');
+        setTimeout(() => {
+          router.push('/posts');
+        }, 1500);
+      } else {
+        document.getElementById('error-modal')?.classList.add('modal-open');
+      }
+    } catch (error) {
+      console.error('Error submitting post:', error);
+      document.getElementById('error-modal')?.classList.add('modal-open');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Get icon for visibility
+  const getVisibilityIcon = () => {
+    switch (visibility) {
+      case 'public': return <Eye className="h-5 w-5 text-primary" />;
+      case 'Communities': return <Users className="h-5 w-5 text-primary" />;
+      case 'private': return <Lock className="h-5 w-5 text-primary" />;
+      default: return <Eye className="h-5 w-5 text-primary" />;
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900 relative overflow-hidden">
+    <div className="drawer lg:drawer-open bg-gradient-to-br from-slate-950 to-slate-900">
+      <input id="main-drawer" type="checkbox" className="drawer-toggle" />
       
-        <Header />        {/* Temporary Auth Status Indicator */}
-        <div style={{ position: 'fixed', top: '80px', left: '20px', backgroundColor: 'rgba(0,0,0,0.7)', color: 'white', padding: '10px', borderRadius: '5px', zIndex: 1000 }}>
-          <p>Auth Status: {status}</p>
-          {status === 'authenticated' && (
-            <>
-              <p>User: {session?.user?.email || 'No email'}</p>
-              <p>Access Token: {session?.user?.accessToken ? '✅ Present' : '❌ Missing'}</p>
-              <p>User ID: {session?.user?.id || 'No ID'}</p>
-            </>
-          )}
-        </div>
-
-        <section>
-<main className="flex-1 flex items-center justify-center px-4 py-12 pt-20">
-
-<div className="w-full max-w-2xl px-4 sm:px-6 overflow-hidden inset-0">
-  <div className="flex items-center gap-4 mb-6">
-    <div className="text-primary-content p-3 rounded-lg shadow-sm">
-      <PenLine className="h-7 w-7 text-teal-400" size={24} />
-    </div>
-    <div>
-      <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">Create New Post</h1>
-      <p className="text-base-content/70 mt-1">Share your thoughts with the community</p>
-    </div>
-  </div>
-  
-  <form onSubmit={handleSubmit} className="space-y-6 card bg-base-100 shadow-xl p-6">
-    {/* Heading */}
-    <div className="form-control">
-      <label className="block text-lg mb-2 text-teal-400 font-bold">Heading</label>
-      <input
-        type="text"
-        value={heading}
-        onChange={(e) => setHeading(e.target.value)}
-        className="input input-bordered w-full focus:input-primary transition"
-        placeholder="Add a heading for your post"
-      />
-      <p className="text-base-content/60 text-sm mt-1">Be descriptive and concise</p>
-    </div>
-    
-    {/* Content */}
-    <div className="form-control">
-      <label className="block text-lg mb-2 text-teal-400 font-bold">Content</label>
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        rows={6}
-        className="textarea textarea-bordered w-full focus:textarea-primary transition"
-        placeholder="What's on your mind?"
-      ></textarea>
-      <p className="text-base-content/60 text-sm mt-1">Share your thoughts, ideas, or questions</p>
-    </div>
-    
-    {/* Visibility */}
-    <div className="form-control" ref={dropdownRef}>
-      <label className="block text-lg mb-2 text-teal-400 font-bold">Visibility</label>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={toggleDropdown}
-          className="flex items-center justify-between w-full input input-bordered bg-base-100 text-base-content focus:input-primary transition"
-        >
-          <div className="flex items-center">
-            {visibility === 'public' && <Eye className="w-5 h-5 mr-2" />} 
-            {visibility === 'Communities' && <Users className="w-5 h-5 mr-2" />} 
-            {visibility === 'private' && <Lock className="w-5 h-5 mr-2" />} 
-            <span className="capitalize">{visibility.replace('_', ' ')}</span>
-          </div>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        {showDropdown && (
-          <div className="absolute z-10 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg">
-            <ul>
-              <li>
-                <button
-                  type="button"
-                  className={`flex items-center w-full px-4 py-2 hover:bg-primary/10 text-left ${visibility === 'public' ? 'text-primary font-semibold' : ''}`}
-                  onClick={() => { setVisibility('public'); setShowDropdown(false); }}
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  Public
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className={`flex items-center w-full px-4 py-2 hover:bg-primary/10 text-left ${visibility === 'Communities' ? 'text-primary font-semibold' : ''}`}
-                  onClick={() => { setVisibility('Communities'); setShowDropdown(false); }}
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  Communities
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className={`flex items-center w-full px-4 py-2 hover:bg-primary/10 text-left ${visibility === 'private' ? 'text-primary font-semibold' : ''}`}
-                  onClick={() => { setVisibility('private'); setShowDropdown(false); }}
-                >
-                  <Lock className="w-4 h-4 mr-2" />
-                  Private
-                </button>
-              </li>
-            </ul>
+      <div className="drawer-content flex flex-col min-h-screen">
+        <Header />
+        
+        {/* Auth Status Badge - Development Only */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="fixed top-20 left-4 badge badge-lg badge-primary gap-2 z-50">
+            <div className={`badge ${status === 'authenticated' ? 'badge-success' : 'badge-error'}`}></div>
+            {status}
           </div>
         )}
-      </div>
-      <p className="text-base-content/60 text-sm mt-1">Who can see this post?</p>
-    </div>
-    
-    {/* Image Upload */}
-    <div className="form-control">
-      <label className="block text-lg mb-2 text-teal-400 font-bold">Image (Optional)</label>
-      <div 
-        className="flex flex-col items-center justify-center border-2 border-dashed border-base-300 rounded-lg p-12 cursor-pointer hover:bg-primary/10 transition-colors"
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <div className="flex flex-col items-center">
-          {/* Removed conflicting class 'text-base-content/60' */}
-          <ImageIcon size={42} className="mb-3 text-teal-400" /> 
-          {/* Removed conflicting class 'text-base-content/60' */}
-          <p className="text-teal-400">Click to upload image(s)</p>
-        </div>
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={handleImageChange}
-        />
-      </div>
-      {/* Previews */}
-      {imagePreviews.length > 0 && (
-        <div className="flex flex-wrap gap-4 mt-4">
-          {imagePreviews.map((src, idx) => (
-            <div key={idx} className="relative group">
-              {/* Consider using Next.js Image component for optimization if this is a Next.js project */}
-              {/* For now, keeping img tag as is, but be mindful of Next.js recommendations */}
-              <img src={src} alt={`Preview ${idx + 1}`} className="w-28 h-28 object-cover rounded-lg border border-base-300" />
-              <button
-                type="button"
-                onClick={() => removeImage(idx)}
-                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition group-hover:scale-110"
-                title="Remove image"
-              >
-                &times;
-              </button>
+        
+        <main className="flex-1 flex items-center justify-center p-4 py-12 pt-20">
+          <div className="card w-full max-w-2xl bg-base-200 shadow-xl">
+            <div className="card-body">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="avatar placeholder">
+                  <div className="bg-primary text-primary-content rounded-full w-14 h-14">
+                    <PenLine size={28} />
+                  </div>
+                </div>
+                <div>
+                  <h1 className="card-title text-3xl font-bold  bg-clip-text text-teal-400">
+                    Create New Post
+                  </h1>
+                  <p className="opacity-70">Share your thoughts with the community</p>
+                </div>
+              </div>
+              
+              <div className="divider"></div>
+              
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Heading */}
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text text-lg font-bold">Heading</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={heading}
+                    onChange={(e) => setHeading(e.target.value)}
+                    className="input input-bordered w-full focus:input-primary"
+                    placeholder="Add a heading for your post"
+                    required
+                  />
+                  <label className="label">
+                    <span className="label-text-alt">Be descriptive and concise</span>
+                  </label>
+                </div>
+                
+                {/* Content */}
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text text-lg font-bold">Content</span>
+                  </label>
+                  <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    rows={6}
+                    className="textarea textarea-bordered w-full focus:textarea-primary"
+                    placeholder="What's on your mind?"
+                    required
+                  ></textarea>
+                  <label className="label">
+                    <span className="label-text-alt">Share your thoughts, ideas, or questions</span>
+                  </label>
+                </div>
+                
+                {/* Visibility Dropdown */}
+                <div className="form-control" ref={dropdownRef}>
+                  <label className="label">
+                    <span className="label-text text-lg font-bold">Visibility</span>
+                  </label>
+                  <div className="dropdown w-full">
+                    <div
+                      tabIndex={0}
+                      role="button"
+                      onClick={toggleDropdown}
+                      className="input input-bordered flex items-center justify-between w-full"
+                    >
+                      <div className="flex items-center gap-2">
+                        {getVisibilityIcon()}
+                        <span>{visibility}</span>
+                      </div>
+                      <ChevronDown size={18} />
+                    </div>
+                    <ul tabIndex={0} className="dropdown-content z-10 menu p-2 shadow bg-base-100 rounded-box w-full mt-1">
+                      <li>
+                        <button type="button" onClick={() => setVisibility('public')}>
+                          <Eye size={18} />
+                          Public
+                        </button>
+                      </li>
+                      <li>
+                        <button type="button" onClick={() => setVisibility('Communities')}>
+                          <Users size={18} />
+                          Communities
+                        </button>
+                      </li>
+                      <li>
+                        <button type="button" onClick={() => setVisibility('private')}>
+                          <Lock size={18} />
+                          Private
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                  <label className="label">
+                    <span className="label-text-alt">Who can see this post?</span>
+                  </label>
+                </div>
+
+                {/* Community Selection (Optional) */}
+                <div className="form-control" ref={communityDropdownRef}>
+                  <label className="label">
+                    <span className="label-text text-lg font-bold">Community (Optional)</span>
+                  </label>
+                  <div className="dropdown w-full">
+                    <div
+                      tabIndex={0}
+                      role="button"
+                      onClick={toggleCommunityDropdown}
+                      className="input input-bordered flex items-center justify-between w-full"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Hash size={18} className="text-primary" />
+                        <span>{selectedCommunity ? 
+                          communities.find(c => c.id === selectedCommunity)?.name || 'Loading...' : 
+                          'Select a community (optional)'}</span>
+                      </div>
+                      <ChevronDown size={18} />
+                    </div>
+                    <ul tabIndex={0} className="dropdown-content z-10 menu p-2 shadow bg-base-100 rounded-box w-full mt-1 max-h-60 overflow-y-auto">
+                      <li>
+                        <button type="button" onClick={() => setSelectedCommunity(null)}>
+                          None (Post without a community)
+                        </button>
+                      </li>
+                      <div className="divider my-1"></div>
+                      {isLoadingCommunities ? (
+                        <li className="flex justify-center p-2">
+                          <span className="loading loading-spinner loading-sm"></span>
+                          <span className="ml-2">Loading communities...</span>
+                        </li>
+                      ) : communities.length > 0 ? (
+                        communities.map(community => (
+                          <li key={community.id}>
+                            <button type="button" onClick={() => setSelectedCommunity(community.id)}>
+                              {community.name}
+                            </button>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="opacity-70 px-4 py-2 text-center">No communities found</li>
+                      )}
+                    </ul>
+                  </div>
+                  <label className="label">
+                    <span className="label-text-alt">Share with a specific community</span>
+                  </label>
+                </div>
+                
+                {/* Image Upload */}
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text text-lg font-bold">Images (Optional, max 5)</span>
+                    <span className="label-text-alt">{images.length}/{MAX_IMAGES}</span>
+                  </label>
+                  <div 
+                    className={`flex flex-col items-center justify-center border-2 border-dashed border-base-300 rounded-lg p-8 cursor-pointer hover:bg-base-300/10 transition-colors ${images.length >= MAX_IMAGES ? 'opacity-50 pointer-events-none' : ''}`}
+                    onClick={() => images.length < MAX_IMAGES && fileInputRef.current?.click()}
+                  >
+                    <div className="flex flex-col items-center text-center">
+                      <div className="avatar placeholder">
+                        <div className="bg-primary text-primary-content rounded-full w-12 h-12">
+                          <ImageIcon size={24} />
+                        </div>
+                      </div>
+                      <p className="mt-2 font-medium">
+                        {images.length >= MAX_IMAGES ? 
+                          'Maximum number of images reached' : 
+                          'Click to upload image(s)'}
+                      </p>
+                      <p className="text-xs opacity-70 mt-1">JPG, PNG (max 1MB each)</p>
+                    </div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleImageChange}
+                      disabled={images.length >= MAX_IMAGES}
+                    />
+                  </div>
+                  
+                  {/* Image Previews */}
+                  {imagePreviews.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {imagePreviews.map((src, idx) => (
+                        <div key={idx} className="relative group">
+                          <div className="avatar">
+                            <div className="w-24 rounded">
+                              <img src={src} alt={`Preview ${idx + 1}`} />
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(idx)}
+                            className="btn btn-xs btn-circle btn-error absolute -top-2 -right-2 opacity-80 hover:opacity-100"
+                            title="Remove image"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="divider"></div>
+                
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => router.back()}
+                    className="btn btn-ghost"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !heading || !content}
+                    className="btn btn-primary"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="loading loading-spinner loading-xs"></span>
+                        Creating...
+                      </>
+                    ) : (
+                      'Create Post'
+                    )}
+                  </button>
+                </div>
+              </form>
+              
+              <div className="text-center text-xs opacity-70 mt-4">
+                <p>All posts are subject to our community guidelines</p>
+              </div>
             </div>
-          ))}
+          </div>
+        </main>
+        
+        <Footer />
+      </div>
+      
+      <div className="drawer-side">
+        <label htmlFor="main-drawer" aria-label="close sidebar" className="drawer-overlay"></label>
+        <Sidebar />
+      </div>
+      
+      {/* Modals */}
+      {/* Auth Error Modal */}
+      <div id="auth-error-modal" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg text-error">Authentication Error</h3>
+          <p className="py-4">You must be logged in to create a post. Please sign in and try again.</p>
+          <div className="modal-action">
+            <button onClick={() => document.getElementById('auth-error-modal')?.classList.remove('modal-open')} className="btn">Close</button>
+            <button onClick={() => router.push('/login')} className="btn btn-primary">Sign In</button>
+          </div>
         </div>
-      )}
-      <p className="text-base-content/60 text-sm mt-1">Supported: JPG, PNG (max 1MB each)</p>
-    </div>
-    
-    {/* Action Buttons */}
-    <div className="flex justify-end space-x-3 mt-8">
-      <button
-        type="button"
-        onClick={() => router.back()}
-        className="btn btn-ghost"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        className="btn btn-soft btn-primary"
-      >
-        Create Post
-      </button>
-    </div>
-  </form>
-  
-  <div className="text-center text-sm text-base-content/60 mt-8">
-    <p>All posts are subject to our community guidelines</p>
-  </div>
-</div>
-</main>
-</section>
+      </div>
+      
+      {/* Success Modal */}
+      <div id="success-modal" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg text-success">Post Created Successfully!</h3>
+          <p className="py-4">Your post has been created. Redirecting to posts page...</p>
+          <div className="modal-action">
+            <div className="loading loading-spinner loading-md"></div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Error Modal */}
+      <div id="error-modal" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg text-error">Error Creating Post</h3>
+          <p className="py-4">There was an error creating your post. Please try again later.</p>
+          <div className="modal-action">
+            <button onClick={() => document.getElementById('error-modal')?.classList.remove('modal-open')} className="btn">Close</button>
+          </div>
+        </div>
+      </div>
 
-
-            <Footer />
+      {/* Image Limit Modal */}
+      <div id="image-limit-modal" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Image Limit Reached</h3>
+          <p className="py-4">You can upload a maximum of {MAX_IMAGES} images per post. Only the first {MAX_IMAGES} images have been added.</p>
+          <div className="modal-action">
+            <button onClick={() => document.getElementById('image-limit-modal')?.classList.remove('modal-open')} className="btn">Understood</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
