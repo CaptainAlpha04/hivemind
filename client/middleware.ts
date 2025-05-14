@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 
-// Add debugging
-export async function middleware(req: NextRequest) {
+// Fix 1: Export as a named export (not just a declaration)
+export const middleware = async (req: NextRequest) => {
   console.log('Middleware running on path:', req.nextUrl.pathname);
   
   try {
@@ -30,7 +30,7 @@ export async function middleware(req: NextRequest) {
     const loginUrl = new URL('/auth/login', req.url);
     return NextResponse.redirect(loginUrl);
   }
-}
+};
 
 // Make sure this matcher configuration is correct
 export const config = {
