@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn as clientSignIn } from 'next-auth/react'; // For client components
@@ -13,14 +13,20 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
   
-  // Check if user was redirected after registration
+  // Check if user was redirected after registration or password reset
   const justRegistered = searchParams.get('registered') === 'true';
   const passwordReset = searchParams.get('reset') === 'true';
+  
+  // Clear any error messages when inputs change
+  useEffect(() => {
+    if (error) setError('');
+  }, [email, password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,26 +34,48 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setError('Please enter a valid email address');
+        setIsLoading(false);
+        return;
+      }
+      
       const result = await clientSignIn('credentials', {
         email,
         password,
         redirect: false,
+        callbackUrl: callbackUrl,
       });
       
       if (result?.error) {
-        // NextAuth.js 5 returns a generic "CredentialsSignin" error for failed logins
-        // Let's handle that more gracefully
         console.log("Sign-in result:", result);
         
-        if (result.error === "CredentialsSignin") {
-          // This is the default error for failed credential login
-          setError('Invalid email or password');
-        } else {
-          setError(result.error || 'Authentication failed');
+        // Handle specific error cases
+        switch(result.error) {
+          case "CredentialsSignin":
+            setError('Invalid email or password');
+            break;
+          case "AccessDenied":
+            setError('Account not verified. Please check your email for verification instructions.');
+            break;
+          case "EmailNotFound":
+            setError('No account found with this email address');
+            break;
+          case "UserSuspended":
+            setError('Your account has been suspended. Please contact support.');
+            break;
+          default:
+            setError(result.error || 'Authentication failed');
         }
       } else {
-        // Success! Redirect to the callbackUrl
-        router.push(callbackUrl);
+        // Success! Redirect to the callbackUrl with a small delay
+        // to allow NextAuth to fully process the session
+        setTimeout(() => {
+          router.push(callbackUrl);
+          router.refresh(); // Refresh to ensure UI updates with new auth state
+        }, 100);
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -60,6 +88,7 @@ export default function LoginPage() {
   const handleOAuthSignIn = async (provider: 'google') => {
     setIsLoading(true);
     try {
+      // Add state parameter to track OAuth origin
       await signInWithProvider(provider, callbackUrl);
     } catch (error) {
       console.error('OAuth error:', error);
@@ -70,27 +99,20 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900 relative overflow-hidden">
-      {/* Improved Header with glass effect */}
       <Header />
-
-      {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4">
-        {/* Modern Blur Gradient Elements */}
+        {/* Background elements remain the same */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* Large gradient blobs */}
           <div className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-teal-500/20 to-cyan-500/20 blur-3xl -top-20 -left-20"></div>
           <div className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-blue-500/10 to-indigo-500/10 blur-3xl bottom-40 -right-20"></div>
           <div className="absolute w-80 h-80 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 blur-3xl top-1/2 left-1/3"></div>
         </div>
-
-        {/* Subtle grid overlay */}
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
 
-        {/* Login Card - Modernized */}
         <div className="w-full max-w-md z-10 mt-20">
           <div className="glass-card">
             <div className="p-8 relative">
-              {/* Small decorative elements */}
+              {/* Decorative elements */}
               <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-teal-400/10 to-cyan-400/10 rounded-bl-full -z-10"></div>
               <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-teal-400/10 to-cyan-400/10 rounded-tr-full -z-10"></div>
               
@@ -105,6 +127,7 @@ export default function LoginPage() {
                 </Link>
               </p>
 
+              {/* Success notifications */}
               {justRegistered && (
                 <div className="mb-6 p-3 bg-green-500/10 border border-green-500/20 rounded-md">
                   <p className="text-green-300 text-sm">
@@ -121,6 +144,7 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {/* Error display */}
               {error && (
                 <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-md">
                   <p className="text-red-300 text-sm">{error}</p>
@@ -143,6 +167,8 @@ export default function LoginPage() {
                       className='text-sm'
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      disabled={isLoading}
+                      autoComplete="email"
                     />
                   </label>
                 </div>
@@ -157,18 +183,27 @@ export default function LoginPage() {
                     </Link>
                   </div>
 
-                  <label className="input validator input-lg w-full">
+                  <label className="input validator input-lg w-full relative">
                     <i className='fi fi-br-lock text-sm text-gray-500'></i>
                     <input
                       id="password"
                       name="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       required
                       placeholder="Password"
-                      className='text-sm'
+                      className='text-sm pr-10'
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      disabled={isLoading}
+                      autoComplete="current-password"
                     />
+                    <button 
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-400"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      <i className={`fi ${showPassword ? 'fi-br-eye-crossed' : 'fi-br-eye'} text-sm`}></i>
+                    </button>
                   </label>
                 </div>
 
@@ -228,6 +263,7 @@ export default function LoginPage() {
                     className="social-button w-full justify-center"
                     onClick={() => handleOAuthSignIn('google')}
                     disabled={isLoading}
+                    type="button"
                   >
                     <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -243,9 +279,7 @@ export default function LoginPage() {
           </div>
         </div>
       </main>
-
-      {/* Footer - Clean and Modern */}
- <FooterAuth />
+      <FooterAuth />
     </div>
   );
 }

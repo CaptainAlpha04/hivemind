@@ -88,41 +88,6 @@ export async function sendWelcomeEmail(email, name) {
   }
 }
 
-// Send verification email with token link
-export async function sendVerificationEmail(email, name, token) {
-  try {
-    const verificationLink = `${process.env.CLIENT_URL}/auth/verify?token=${token}`;
-    
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"HiveMind" <noreply@hivemind.com>',
-      to: email,
-      subject: 'Verify Your HiveMind Email',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #10B981;">Verify Your Email Address</h2>
-          <p>Hello ${name},</p>
-          <p>Please click the button below to verify your email address:</p>
-          <div style="margin: 30px 0;">
-            <a href="${verificationLink}" 
-               style="background-color: #10B981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Verify My Email
-            </a>
-          </div>
-          <p>If the button doesn't work, copy and paste this link into your browser:</p>
-          <p style="word-break: break-all; color: #4B5563;">${verificationLink}</p>
-          <p>This link will expire in one hour.</p>
-          <p>Best regards,<br>The HiveMind Team</p>
-        </div>
-      `,
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('Error sending verification email:', error);
-    return false;
-  }
-}
-
 // Send password reset code
 export async function sendPasswordResetCode(email, code) {
   try {

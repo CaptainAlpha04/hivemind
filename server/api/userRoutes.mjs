@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt';
 import User from '../model/user.mjs';
 import neo4jService from '../services/neo4jService.mjs';
 import { hash, compare } from 'bcrypt';
-import { sendVerificationEmail, sendWelcomeEmail, sendVerificationCode, sendPasswordResetCode } from '../services/emailService.mjs';
+import {sendWelcomeEmail, sendVerificationCode, sendPasswordResetCode } from '../services/emailService.mjs';
 import Token from '../model/token.mjs';
 
 const router = express.Router();

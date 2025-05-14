@@ -54,7 +54,7 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile, email, credentials }) {
+    async signIn({ user, account}) {
       // Only handle OAuth providers here
       if (account?.provider === "google") {
         try {
