@@ -178,7 +178,7 @@ export default function CreatePostPage() {
         console.log('Post created:', data);
         document.getElementById('success-modal')?.classList.add('modal-open');
         setTimeout(() => {
-          router.push('/posts');
+          router.push('/');
         }, 1500);
       } else {
         document.getElementById('error-modal')?.classList.add('modal-open');
@@ -205,9 +205,9 @@ export default function CreatePostPage() {
   if (status === 'loading' || status === 'unauthenticated' || isSubmitting) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900">
-        <Header />
+        
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
+          <div className="text-center items-center flex flex-col">
             <div className="w-10 h-10 border-4 border-teal-500/50 border-t-teal-500 rounded-full animate-spin mb-4"></div>
             <p className="text-slate-300">
               {isSubmitting 
@@ -229,7 +229,7 @@ export default function CreatePostPage() {
       
       <div className="drawer-content flex flex-col min-h-screen">
         <Header />
-        
+        <Sidebar />
         <main className="flex-1 flex items-center justify-center p-4 py-12 pt-20">
           <div className="card w-full max-w-2xl bg-base-200 shadow-xl">
             <div className="card-body">
@@ -473,15 +473,8 @@ export default function CreatePostPage() {
           </div>
         </main>
         
-        <Footer />
       </div>
       
-      <div className="drawer-side">
-        <label htmlFor="main-drawer" aria-label="close sidebar" className="drawer-overlay"></label>
-        <Sidebar />
-      </div>
-      
-      {/* Modals */}
       {/* Auth Error Modal */}
       <div id="auth-error-modal" className="modal">
         <div className="modal-box">

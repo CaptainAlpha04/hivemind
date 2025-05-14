@@ -573,6 +573,34 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET /api/posts/:postId - Fetch a single post by ID
+router.get('/:postId', async (req, res) => {
+    const { postId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+        return res.status(400).json({ message: 'Invalid post ID format' });
+    }
+
+    try {
+        const post = await Post.findById(postId).select('-image.data').lean();
+
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        // Check if the user is blocked by the post owner
+        const session = req.auth;
+        if (session?.user?.id && post.userId.equals(session.user.id)) {
+            return res.status(403).json({ message: 'You cannot view your own post' });
+        }
+
+        return res.status(200).json(post);
+    } catch (error) {
+        console.error('Failed to fetch post:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
 // GET /api/posts/:postId/image - Endpoint to retrieve a post image
 router.get('/:postId/image', async (req, res) => {
     try {
