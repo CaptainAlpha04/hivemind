@@ -20,30 +20,38 @@ const upload = multer({ storage: storage, fileFilter: fileFilter });
 
 // POST /api/posts - Create a new post
 // Use upload.array('images') middleware to handle multiple file uploads with field name 'images'
-router.post('/', upload.array('images', 5), async (req, res) => { // Changed from upload.single('image') to upload.array('images', 5) - allowing up to 5 images
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
+router.post('/', upload.array('images', 5), async (req, res) => { // userId will be passed in req.body instead of relying on auth session
+    // const session = req.auth; // Removed: No longer relying on session populated by auth middleware for userId
+    // const userIdFromAuth = session?.user?.id; // Removed: userId will come from req.body
 
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
+    const { heading, content, visibility, userId } = req.body; // Destructure userId directly from req.body
+    const imageFiles = req.files; // Get files from req.files added by multer
+
+    // Validate userId from request body
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) { // Ensure mongoose is in scope
+        console.error('Invalid or missing user ID in request body:', userId);
+        return res.status(400).json({ message: 'Invalid user ID format or missing user ID in request body' });
     }
-
-    if (!mongoose.Types.ObjectId.isValid(userIdString)) {
-        return res.status(400).json({ message: 'Invalid user ID format' });
-    }
-    const userId = new mongoose.Types.ObjectId(userIdString);
-
-    const { heading, content, visibility } = req.body;
-    const imageFiles = req.files; // Get files from req.files added by multer (plural)
 
     // Validate required fields
     if (!heading || !content) {
         return res.status(400).json({ message: 'Missing required fields: heading and content' });
-    }
-
-    // Optional: Validate visibility if provided, or rely on schema default
-    if (visibility && !['public', 'followers_only', 'private'].includes(visibility)) {
-        return res.status(400).json({ message: 'Invalid visibility value.' });
+    }    // Optional: Validate visibility if provided, or rely on schema default
+    // Map frontend visibility values to backend values
+    let visibilityValue = 'public'; // Default
+    
+    if (visibility) {
+        if (visibility === 'private') {
+            visibilityValue = 'private';
+        } else if (visibility === 'Communities') {
+            visibilityValue = 'followers_only'; // Map 'Communities' from frontend to 'followers_only' on backend
+        } else if (visibility === 'public') {
+            visibilityValue = 'public';
+        } else if (!['public', 'followers_only', 'private'].includes(visibility)) {
+            return res.status(400).json({ message: 'Invalid visibility value.' });
+        } else {
+            visibilityValue = visibility; // If it's already a valid value
+        }
     }
 
     try {
@@ -56,13 +64,12 @@ router.post('/', upload.array('images', 5), async (req, res) => { // Changed fro
 
         // Prepare post data
         const postData = {
-            userId: userId,
-            username: user.username, // Store username
+            userId: userId,            username: user.username, // Store username
             heading: heading,
             content: content,
             likes: [],
             comments: [],
-            visibility: visibility || 'public', // Add visibility, defaulting to 'public' if not provided (schema handles default too)
+            visibility: visibilityValue, // Use our mapped visibility value
             images: [] // Initialize as an empty array
         };
 
@@ -109,16 +116,12 @@ router.post('/', upload.array('images', 5), async (req, res) => { // Changed fro
 // POST /api/posts/:postId/like - Like/Unlike a post
 router.post('/:postId/like', async (req, res) => {
     const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
-
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(userIdString)) {
+    const userId = session?.user?.id;
+    
+    // Our middleware already enforces authentication, but double check
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({ message: 'Invalid user ID format' });
     }
-    const userId = new mongoose.Types.ObjectId(userIdString);
 
     const { postId } = req.params;
 
@@ -164,16 +167,12 @@ router.post('/:postId/like', async (req, res) => {
 // POST /api/posts/:postId/comment - Add a comment to a post
 router.post('/:postId/comment', async (req, res) => {
     const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
-
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(userIdString)) {
+    const userId = session?.user?.id;
+    
+    // Our middleware already enforces authentication
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({ message: 'Invalid user ID format' });
     }
-    const userId = new mongoose.Types.ObjectId(userIdString);
 
     const { postId } = req.params;
     const { text } = req.body;
@@ -224,16 +223,12 @@ router.post('/:postId/comment', async (req, res) => {
 // POST /api/posts/:postId/comments/:commentId/like - Like/Unlike a comment
 router.post('/:postId/comments/:commentId/like', async (req, res) => {
     const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
-
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(userIdString)) {
+    const userId = session?.user?.id;
+    
+    // Our auth middleware already verified authentication
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({ message: 'Invalid user ID format' });
     }
-    const userId = new mongoose.Types.ObjectId(userIdString);
 
     const { postId, commentId } = req.params;
 
@@ -280,10 +275,11 @@ router.post('/:postId/comments/:commentId/like', async (req, res) => {
 // GET /api/posts - Fetch posts (example, implement pagination/filtering later)
 router.get('/', async (req, res) => {
     const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
     let currentUserId = null;
-    if (userIdString && mongoose.Types.ObjectId.isValid(userIdString)) {
-        currentUserId = new mongoose.Types.ObjectId(userIdString);
+    
+    // If authenticated, middleware has already validated and converted the ID
+    if (session?.user?.id) {
+        currentUserId = session.user.id;
     }
 
     try {

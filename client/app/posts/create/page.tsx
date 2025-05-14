@@ -8,7 +8,7 @@ import Header from '@/components/ui/Navbar';
 
 export default function CreatePostPage() {
   const router = useRouter();
-  const { data: session } = useSession(); // Get session data and status
+  const { data: session, status } = useSession(); // Get session data and status
   const [heading, setHeading] = useState('');
   const [content, setContent] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'Communities' | 'private'>('public');
@@ -48,35 +48,45 @@ export default function CreatePostPage() {
 
     if (status === 'loading') {
       console.log('Authentication status loading...');
-      // Optionally, show a loading indicator to the user
-      return; // Prevent submission while loading
-    }
-
-    if (status !== 'authenticated' || !session?.accessToken) {
-      console.error('User not authenticated or token not available.');
-      // Optionally, redirect to login or show an error message to the user
-      // Example: router.push('/auth/login');
-      alert('You must be logged in to create a post.');
       return;
     }
 
-    const formData = new FormData();
+    // Check for accessToken specifically
+    if (status !== 'authenticated' || !session?.user?.accessToken) { 
+      console.error('User not authenticated or access token not available.');
+      alert('You must be logged in to create a post, or your session is missing an access token.');
+      return;
+    }
+
+    const formData = new FormData();    
     formData.append('heading', heading);
     formData.append('content', content);
     formData.append('visibility', visibility);
+    if (session?.user?.id) { // Ensure userId is available
+      formData.append('userId', session.user.id);
+    } else {
+      console.error('User ID not found in session.');
+      alert('Your session is missing a user ID. Cannot create post.');
+      return;
+    }
     images.forEach((img) => {
       formData.append('images', img);
     });
     // Implement form submission logic here
     console.log('Form submitted:', { heading, content, visibility, images });
-    // Example: await fetch('/api/posts', { method: 'POST', body: formData });
-
-    const response = await fetch(process.env.NEXT_PUBLIC_API_URL + '/posts', {
+    // Example: await fetch('/api/posts', { method: 'POST', body: formData });    // Print what we know about the API URL and session
+    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
+    console.log('Session user:', session.user);
+    
+    // Use consistent API URL format
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';    // Match the endpoint in postRoutes.mjs
+    const response = await fetch(`${apiUrl}/api/posts`, {
       method: 'POST',
       body: formData,
       headers: {
-        'Authorization': `Bearer ${session.accessToken}`, // Use token from session
+        // 'Authorization': `Bearer ${session.user.accessToken}`, // Removed to rely on cookie-based auth
       },
+      credentials: 'include', // Important: This sends cookies with the request
     });
 
     if (response.ok) {
@@ -91,8 +101,17 @@ export default function CreatePostPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900 relative overflow-hidden">
       
-        <Header />
-
+        <Header />        {/* Temporary Auth Status Indicator */}
+        <div style={{ position: 'fixed', top: '80px', left: '20px', backgroundColor: 'rgba(0,0,0,0.7)', color: 'white', padding: '10px', borderRadius: '5px', zIndex: 1000 }}>
+          <p>Auth Status: {status}</p>
+          {status === 'authenticated' && (
+            <>
+              <p>User: {session?.user?.email || 'No email'}</p>
+              <p>Access Token: {session?.user?.accessToken ? '✅ Present' : '❌ Missing'}</p>
+              <p>User ID: {session?.user?.id || 'No ID'}</p>
+            </>
+          )}
+        </div>
 
         <section>
 <main className="flex-1 flex items-center justify-center px-4 py-12 pt-20">

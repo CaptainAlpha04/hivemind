@@ -77,15 +77,28 @@ export const authOptions = {
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
+      }
+      // Store the access token if it exists (for OAuth providers)
+      if (account?.access_token) {
+        token.accessToken = account.access_token;
+      }
+      // For credential login, simulate an access token using the session token
+      // This is a simple approach; in a production app, you might want to generate a proper JWT
+      if (!token.accessToken) {
+        token.accessToken = token.jti || `auth-token-${Date.now()}`;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
+      }
+      // Include the access token in the session
+      if (token.accessToken) {
+        session.user.accessToken = token.accessToken;
       }
       return session;
     },
