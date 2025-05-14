@@ -1,22 +1,45 @@
-import React from 'react'
-import Image from 'next/image'
+'use client';
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 function ChatMenu() {
-  // Dummy data that we'll replace later
-  const contacts = [
-    { id: 1, name: 'Sara Williams', role: 'Senior Consultant', username: 'catalyst01', usernameColor: 'bg-pink-500', isOnline: true, avatar: '/avatars/sara.jpg' },
-    { id: 2, name: 'Artemis Salidius', role: 'Finance Advisor', username: 'DespairDad', usernameColor: 'bg-indigo-500', isOnline: false, avatar: '/avatars/artemis.jpg' },
-    { id: 3, name: 'Franky', role: 'Student', username: 'Keeper007', usernameColor: 'bg-green-700', isOnline: false, avatar: '/avatars/franky.jpg' },
-  ];
+  const [contacts, setContacts] = useState([]);
+  const [chats, setChats] = useState([]);
 
-  const chats = [
-    { id: 1, name: 'Raj Vishal', role: 'Software Engineer', username: 'CheeniIB', usernameColor: 'bg-red-600', hasUnread: true, avatar: '/avatars/raj.jpg' },
-    { id: 2, name: 'Michael Smith', role: 'Jr Photographer', username: 'sigmc32', usernameColor: 'bg-blue-800', hasUnread: false, avatar: '/avatars/michael.jpg' },
-    { id: 3, name: 'Judy Ju', role: 'UX/UI Apprentice', username: 'Jujistu1', usernameColor: 'bg-green-700', hasUnread: false, avatar: '/avatars/judy.jpg' },
-    { id: 4, name: 'David Harbour', role: 'Actor', username: 'DavidHb', usernameColor: 'bg-blue-900', hasUnread: true, avatar: '/avatars/david.jpg' },
-    { id: 5, name: 'Charity Mill', role: 'Fashion Designer', username: 'HeartSage', usernameColor: 'bg-pink-600', hasUnread: false, avatar: '/avatars/charity.jpg' },
-    { id: 6, name: 'Yasin Alma\'ar', role: 'Mechanical Engineer', username: 'unknown12', usernameColor: 'bg-orange-500', hasUnread: false, avatar: '/avatars/yasin.jpg' },
-  ];
+  useEffect(() => {
+    // Fetch contacts (active users)
+    const fetchContacts = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`); //  Update this endpoint to fetch active contacts
+        if (response.ok) {
+          const data = await response.json();
+          setContacts(data);
+        } else {
+          console.error('Failed to fetch contacts:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching contacts:', error);
+      }
+    };
+
+    // Fetch chats (recent conversations)
+    const fetchChats = async () => {
+      try {
+        const response = await fetch('/api/chats'); //  Update this endpoint to fetch recent chats
+        if (response.ok) {
+          const data = await response.json();
+          setChats(data);
+        } else {
+          console.error('Failed to fetch chats:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      }
+    };
+
+    fetchContacts();
+    fetchChats();
+  }, []);
 
   // Define prop types for components
   interface AvatarProps {
@@ -26,7 +49,7 @@ function ChatMenu() {
 
   interface ContactItemProps {
     contact: {
-      id: number;
+      _id: string;
       name: string;
       role: string;
       username: string;
@@ -38,7 +61,7 @@ function ChatMenu() {
 
   interface ChatItemProps {
     chat: {
-      id: number;
+      _id: string;
       name: string;
       role: string;
       username: string;
@@ -110,7 +133,7 @@ function ChatMenu() {
           <h3 className="text-sm font-medium text-gray-400 mb-2">Active</h3>
           <div className="space-y-1">
             {contacts.map(contact => (
-              <ContactItem key={contact.id} contact={contact} />
+              <ContactItem key={Math.random()} contact={contact} />
             ))}
           </div>
         </div>
@@ -118,7 +141,7 @@ function ChatMenu() {
         <h2 className="text-xl font-bold mb-4">Chats</h2>
         <div className="space-y-1">
           {chats.map(chat => (
-            <ChatItem key={chat.id} chat={chat} />
+            <ChatItem key={Math.random()} chat={chat} />
           ))}
         </div>
       </div>

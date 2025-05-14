@@ -112,6 +112,17 @@ router.post('/', upload.single('profilePicture'), async (req, res) => {
     }
 });
 
+// GET /api/users - Get all users
+router.get('/', async (req, res) => {
+    try {
+        const users = await User.find().select('-password').lean(); // Exclude passwords
+        return res.status(200).json(users);
+    } catch (error) {
+        console.error('Failed to fetch users:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
 // GET /api/users/:userId/profilePicture - Get a user's profile picture
 router.get('/:userId/profilePicture', async (req, res) => {
     try {
