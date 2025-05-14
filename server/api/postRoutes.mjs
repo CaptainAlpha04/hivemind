@@ -19,8 +19,8 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ storage: storage, fileFilter: fileFilter });
 
 // POST /api/posts - Create a new post
-// Use upload.single('image') middleware to handle single file upload with field name 'image'
-router.post('/', upload.single('image'), async (req, res) => {
+// Use upload.array('images') middleware to handle multiple file uploads with field name 'images'
+router.post('/', upload.array('images', 5), async (req, res) => { // Changed from upload.single('image') to upload.array('images', 5) - allowing up to 5 images
     const session = req.auth;
     const userIdString = session?.user?.id ?? session?.user?.sub;
 
@@ -34,7 +34,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     const userId = new mongoose.Types.ObjectId(userIdString);
 
     const { heading, content, visibility } = req.body;
-    const imageFile = req.file; // Get file from req.file added by multer
+    const imageFiles = req.files; // Get files from req.files added by multer (plural)
 
     // Validate required fields
     if (!heading || !content) {
@@ -62,15 +62,16 @@ router.post('/', upload.single('image'), async (req, res) => {
             content: content,
             likes: [],
             comments: [],
-            visibility: visibility || 'public' // Add visibility, defaulting to 'public' if not provided (schema handles default too)
+            visibility: visibility || 'public', // Add visibility, defaulting to 'public' if not provided (schema handles default too)
+            images: [] // Initialize as an empty array
         };
 
-        // Add image data if file exists
-        if (imageFile) {
-            postData.image = {
-                data: imageFile.buffer,
-                contentType: imageFile.mimetype
-            };
+        // Add image data if files exist
+        if (imageFiles && imageFiles.length > 0) {
+            postData.images = imageFiles.map(file => ({ // Map over imageFiles
+                data: file.buffer,
+                contentType: file.mimetype
+            }));
         }
 
         // Create the new post document
@@ -79,14 +80,15 @@ router.post('/', upload.single('image'), async (req, res) => {
         // Save the post to the database
         await newPost.save();
 
-        // Prepare and return the response (don't send image buffer back)
+        // Prepare and return the response (don't send image buffers back)
         const postResponse = newPost.toObject();
-        let hasImage = false;
-        if (postResponse.image) {
-            delete postResponse.image; // Remove image data from response
-            hasImage = true;
+        let hasImages = false; // Changed from hasImage
+        if (postResponse.images && postResponse.images.length > 0) { // Check images array
+            hasImages = true;
+            // Remove image data from response for brevity and security
+            postResponse.images = postResponse.images.map(img => ({ contentType: img.contentType, _id: img._id }));
         }
-        postResponse.hasImage = hasImage; // Add flag indicating image presence
+        postResponse.hasImages = hasImages; // Changed from hasImage
 
         return res.status(201).json(postResponse);
 

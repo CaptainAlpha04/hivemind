@@ -2,9 +2,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn as clientSignIn } from 'next-auth/react';
-import { signInWithProvider } from '../actions';
-import Header from '@/components/Header';
+import { signIn as clientSignIn } from 'next-auth/react'; // For client components
+import { signInWithProvider } from '../actions'; // Keep this for OAuth
+import Header from '@/components/ui/Navbar';
 import FooterAuth from '@/components/auth/FooterAuth';
 
 export default function LoginPage() {

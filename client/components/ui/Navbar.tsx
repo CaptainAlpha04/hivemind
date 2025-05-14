@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import Image from 'next/image' 
 
-function Header() {
+function Navbar() {
 return (
     <header className="w-full py-4 px-24 flex items-center justify-between z-20 backdrop-blur-md fixed">
     <div className="flex items-center space-x-3">
@@ -22,4 +22,4 @@ return (
 )
 }
 
-export default Header
+export default Navbar
