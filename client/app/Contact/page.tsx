@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 
-import Footer from '@/components/Footer';
-import Header from '@/components/Header';
+import Footer from '@/components/ui/Footer';
+import Header from '@/components/ui/Navbar';
 import Faq from '@/components/contact/Faq';
-import Cts from '@/components/Cts';
+import Cts from '@/components/home/Cts';
 import Info from '@/components/contact/Info';
 
 const ContactPage = () => {

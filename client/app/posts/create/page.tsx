@@ -3,8 +3,8 @@ import { useState, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react'; // Import useSession
 import { PenLine, Eye, Users, Lock, ImageIcon } from 'lucide-react';
-import Footer from '@/components/Footer';
-import Header from '@/components/Header';
+import Footer from '@/components/ui/Footer';
+import Header from '@/components/ui/Navbar';
 
 export default function CreatePostPage() {
   const router = useRouter();

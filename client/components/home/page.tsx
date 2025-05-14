@@ -1,11 +1,11 @@
 import React from 'react'
-import Header from '@/components/Header'
-import Hero from '@/components/Hero'
-import Footer from '@/components/Footer'
+import Header from '@/components/ui/Navbar'
+import Hero from '@/components/home/Hero'
+import Footer from '@/components/ui/Footer'
 import Features from '@/components/home/Features'
 import AppPreview from '@/components/home/AppPreview'
 import AIFeatures from '@/components/home/AIFeatures'
-import Cts from '@/components/Cts'
+import Cts from '@/components/home/Cts'
 
 
 function LandingPage() {

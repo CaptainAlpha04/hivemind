@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import Header from '@/components/Header';
+import Header from '@/components/ui/Navbar';
 
 export default function SettingsLayout({
   children,

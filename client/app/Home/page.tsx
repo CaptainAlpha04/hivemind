@@ -2,16 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSession, signOut} from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
-import Hero from '@/components/Hero';
-import Footer from '@/components/Footer';
-import Image from 'next/image';
-import Features from '@/components/home/Features';
-import AppPreview from '@/components/home/AppPreview';
-import AIFeatures from '@/components/home/AIFeatures';
-import Cts from '@/components/Cts';
 import LandingPage from '@/components/home/page';
-
+import MainPage from '@/components/main/feed';
 
 export default function HomePage() {
   const { data: session, status } = useSession();
@@ -60,8 +52,8 @@ export default function HomePage() {
   } else if (status === "authenticated") {
       return(
         <>
-        {/* Temporary Feed page after login */}
-          
+          {/* Feeds Page */}
+            <MainPage />
         </>
       );
   }
