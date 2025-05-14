@@ -15,7 +15,8 @@
     "mongodb": "^6.16.0",
     "mongoose": "^8.13.2",
     "multer": "^1.4.5-lts.2",
-    "neo4j-driver": "^5.28.1"
+    "neo4j-driver": "^5.28.1",
+    "nodemailer": "^6.10.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
