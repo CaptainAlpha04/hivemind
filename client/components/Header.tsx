@@ -1,26 +1,133 @@
-import React from 'react'
-import Link from 'next/link'
-import Image from 'next/image' 
+"use client";
 
-function Header() {
-return (
-    <header className="w-full py-4 px-24 flex items-center justify-between z-20 backdrop-blur-md fixed">
-    <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
-            <Image src="/images/logo.png" alt="HiveMind Logo" width={36} height={36} className="object-contain w-8 h-8" />
+import React from "react";
+import { BsChatDots, BsBell, BsStars, BsPlusCircle, BsSearch } from "react-icons/bs";
+import ProfileDropdown from "./ProfileDropdown";
+import Image from "next/image";
+
+const Header = () => {
+  return (
+    <header style={{
+      position: "fixed",
+      top: 0,
+      right: 0,
+      left: 0,
+      zIndex: 100,
+      background: "#181e29",
+      padding: "15px 32px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderBottom: "1px solid rgba(255,255,255,0.05)",
+      height: "70px"
+    }}>
+      <div style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        gap: 12 
+      }}>
+        <Image src="/images/logo.png" alt="HiveMind" width={40} height={40} />
+        <div style={{ fontSize: 28 }}>
+          <span style={{ color: "#fff", fontWeight: 300 }}>Hive</span>
+          <span style={{ color: "#2de0a7", fontWeight: 700 }}>Mind</span>
         </div>
-        <span className="text-base-content font-extralight text-xl tracking-wide">Hive<b className='font-extrabold'>Mind</b></span>
-    </div>
-    <nav className="hidden md:flex space-x-8">
-        <Link href="/home" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Home</Link>
-        <Link href="/explore" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Explore</Link>
-        <Link href="/support" className="text-slate-200 hover:text-teal-300 transition-colors duration-300 text-sm font-medium hover:bg-white/10 hover:backdrop-blur-md px-3 py-1 rounded-lg">Support</Link>
-    </nav>
+      </div>
 
-  
-</header>
+      <div style={{ 
+        display: "flex",
+        alignItems: "center",
+        gap: 20,
+        width: "700px" 
+      }}>
+        <button style={{ 
+          width: 40, 
+          height: 40, 
+          borderRadius: "50%", 
+          background: "#000", 
+          border: "none", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          cursor: "pointer" 
+        }}>
+          <BsSearch color="#fff" size={20} />
+        </button>
+        <input 
+          type="text" 
+          placeholder="Search Hives, Stories and more..." 
+          style={{ 
+            background: "#232a3a", 
+            border: "none", 
+            borderRadius: 24, 
+            padding: "10px 15px", 
+            color: "#fff", 
+            width: "90%", 
+            fontSize: 16 
+          }} 
+        />
+      </div>
+      
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button style={{ 
+          width: 40, 
+          height: 40, 
+          borderRadius: "50%", 
+          background: "#000", 
+          border: "none", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          cursor: "pointer" 
+        }}>
+          <BsChatDots color="#fff" size={20} />
+        </button>
+        <button style={{ 
+          width: 40, 
+          height: 40, 
+          borderRadius: "50%", 
+          background: "#000", 
+          border: "none", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          cursor: "pointer" 
+        }}>
+          <BsBell color="#fff" size={20} />
+        </button>
+        <button style={{ 
+          width: 40, 
+          height: 40, 
+          borderRadius: "50%", 
+          background: "#000", 
+          border: "none", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          cursor: "pointer" 
+        }}>
+          <BsStars color="#fff" size={20} />
+        </button>
+        <button style={{ 
+          width: 40, 
+          height: 40, 
+          borderRadius: "50%", 
+          background: "#000", 
+          border: "none", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          cursor: "pointer" 
+        }}>
+          <BsPlusCircle color="#fff" size={20} />
+        </button>
+        <ProfileDropdown 
+          profileImage="https://picsum.photos/40/40?random=5"
+          userName="Muhammad Faseeh"
+          userTag="#Zen"
+        />
+      </div>
+    </header>
+  );
+};
 
-)
-}
-
-export default Header
+export default Header;

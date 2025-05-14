@@ -80,6 +80,10 @@ export const config = {
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      // Always redirect to /mainpage after sign-in
+      return baseUrl + "/mainpage";
+    },
   },
   session: {
     strategy: "jwt",
