@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt';
 import User from '../model/user.mjs';
 import neo4jService from '../services/neo4jService.mjs';
 import { hash, compare } from 'bcrypt';
-import { sendVerificationEmail, sendWelcomeEmail, sendVerificationCode, sendPasswordResetCode } from '../services/emailService.mjs';
+import {sendWelcomeEmail, sendVerificationCode, sendPasswordResetCode } from '../services/emailService.mjs';
 import Token from '../model/token.mjs';
 
 const router = express.Router();
@@ -108,6 +108,17 @@ router.post('/', upload.single('profilePicture'), async (req, res) => {
                 }, {})
             });
         }
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// GET /api/users - Get all users
+router.get('/', async (req, res) => {
+    try {
+        const users = await User.find().select('-password').lean(); // Exclude passwords
+        return res.status(200).json(users);
+    } catch (error) {
+        console.error('Failed to fetch users:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 });

@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { MessageSquare, Bell, Sparkles, PlusCircle, Search } from "lucide-react";
-import ProfileDropdown from "@/components/ui/Dropdown";
+import { MessageSquare, Bell, Sparkles, PlusCircle, Search, PenIcon } from "lucide-react";
+import ProfileDropdown from "@/components/ui/ProfileDropdown";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -38,10 +38,10 @@ const Header = () => {
       <div className="flex items-center gap-3">
       
         <button className="btn btn-circle btn-ghost border-none tooltip tooltip-bottom" data-tip="Chat">
-          <div className="indicator">
+          <Link href="/chat" className="indicator">
             <MessageSquare className="text-base-content" size={18} />
             <span className="badge badge-xs badge-primary indicator-item">{}</span>
-          </div>
+          </Link>
         </button>
 
         <button className="btn btn-circle btn-ghost border-none tooltip tooltip-bottom" data-tip="Notifications">
@@ -54,11 +54,25 @@ const Header = () => {
         <button className="btn btn-circle btn-ghost border-none tooltip tooltip-bottom" data-tip="Synergy">
           <Sparkles className="text-base-content" size={18} />
         </button>
-
-        <button className="btn btn-circle btn-ghost hover:bg-primary border-none tooltip tooltip-bottom" data-tip="Create ">
-          <PlusCircle size={18} />
-        </button>
-        
+          <div className="dropdown dropdown-end">
+            <div tabIndex={0} role="button" className="btn btn-circle btn-ghost hover:bg-primary border-none tooltip tooltip-bottom" data-tip="Create">
+              <PlusCircle className="text-base-content" size={18} />
+            </div>
+            <ul tabIndex={0} className="dropdown-content z-[1] menu shadow bg-base-100 rounded-box w-52">
+              <li>
+                <Link href="/posts/create" className="flex items-center gap-2">
+                  <PenIcon className="text-base-content" size={18} />
+                  Post
+                </Link>
+              </li>
+              <li>
+                <Link href="/hives/create"  className="flex items-center gap-2">
+                  <PlusCircle className="text-base-content" size={18} />
+                  Hive
+                </Link>
+              </li>
+            </ul>
+          </div>
         <div className="tooltip tooltip-bottom" data-tip="Profile">
         <ProfileDropdown />
         </div>
