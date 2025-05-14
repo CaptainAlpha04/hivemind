@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react'; // Import useSession
 import { PenLine, Eye, Users, Lock, ImageIcon, X, ChevronDown, Hash } from 'lucide-react';
 import Footer from '@/components/ui/Footer';
 import Header from '@/components/ui/Header';
@@ -125,8 +125,9 @@ export default function CreatePostPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    if (status === 'loading') {
-      console.log('Authentication status loading...');
+    if (!session?.user?.id) {
+      alert('You must be logged in to create a post');
+      router.push('/auth/login?callbackUrl=/posts/create');
       return;
     }
 
@@ -193,6 +194,22 @@ export default function CreatePostPage() {
     }
   };
 
+  // Only show loading state during form submission
+  if (isSubmitting) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="spinner mb-4"></div>
+            <p className="text-slate-300">Creating post...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render the page
   return (
     <div className="drawer lg:drawer-open bg-gradient-to-br from-slate-950 to-slate-900">
       <input id="main-drawer" type="checkbox" className="drawer-toggle" />

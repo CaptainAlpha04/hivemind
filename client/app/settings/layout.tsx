@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import Header from '@/components/ui/Header';
+import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useEffect } from 'react';
 
 export default function SettingsLayout({
   children,
@@ -10,6 +12,19 @@ export default function SettingsLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+
+  // Client-side authentication check
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      console.log('Not authenticated, redirecting from settings');
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent(pathname)}`);
+    } else if (status === 'authenticated') {
+      // You now have access to the user ID
+      console.log('User ID in settings:', session.user?.id);
+    }
+  }, [status, session, router, pathname]);
 
   const navItems = [
     { label: 'Profile', href: '/settings/profile' },
@@ -17,6 +32,28 @@ export default function SettingsLayout({
     { label: 'Privacy', href: '/settings/privacy' },
     { label: 'Preferences', href: '/settings/preferences' },
   ];
+
+  // Show loading state during authentication check
+  if (status === 'loading') {
+    return (
+      <>
+        <div className="fixed top-0 left-0 w-full z-30 bg-transparent backdrop-blur-md">
+          <Header />
+        </div>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex pt-20 justify-center items-center">
+          <div className="flex flex-col items-center">
+            <div className="w-10 h-10 border-4 border-teal-500/50 border-t-teal-500 rounded-full animate-spin mb-4"></div>
+            <p className="text-slate-300">Loading settings...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Prevent rendering if not authenticated
+  if (status === 'unauthenticated') {
+    return null; // Will redirect in the useEffect
+  }
 
   return (
     <>
