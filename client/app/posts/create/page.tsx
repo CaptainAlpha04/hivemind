@@ -104,6 +104,22 @@ export default function CreatePostPage() {
     setImagePreviews(prev => prev.filter((_, i) => i !== idx));
   };
 
+  // Get list of communities
+  const getCommunities = async (query: string) => {
+    try {
+      const response = await fetch(`/api/communities?search=${query}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch communities');
+      }
+      const data = await response.json();
+      return data;
+    }
+    catch (error) {
+      console.error('Error fetching communities:', error);
+      return [];
+    }
+  }
+
   // Handler for form submission
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

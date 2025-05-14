@@ -53,28 +53,6 @@ router.get('/:botId', async (req, res) => {
             return res.status(404).json({ message: 'Bot not found' });
         }
 
-        // Check visibility restrictions
-        const session = req.auth;
-        const userIdString = session?.user?.id ?? session?.user?.sub;
-        
-        if (bot.visibility !== 'public') {
-            // For private or followers_only bots, check authentication
-            if (!session || !userIdString) {
-                return res.status(401).json({ message: 'Authentication required to view this bot' });
-            }
-
-            const userId = new mongoose.Types.ObjectId(userIdString);
-            
-            // If private, only the creator can see it
-            if (bot.visibility === 'private' && !bot.createdBy.equals(userId)) {
-                return res.status(403).json({ message: 'You do not have permission to view this bot' });
-            }
-            
-            // If followers_only, need to check if user is following the bot creator
-            // This would require additional logic and a follow relationship model
-            // For now, we'll just allow it (simplified)
-        }
-        
         return res.status(200).json(bot);
     } catch (error) {
         console.error('Failed to fetch bot:', error);
@@ -82,55 +60,110 @@ router.get('/:botId', async (req, res) => {
     }
 });
 
+
 // POST /api/bots - Create a new bot
 router.post('/', async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
-
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(userIdString)) {
-        return res.status(400).json({ message: 'Invalid user ID format' });
-    }
-    
-    const userId = new mongoose.Types.ObjectId(userIdString);
-    
     try {
-        // Verify the user exists
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
+        // Required fields validation based on both user and bot schemas
+        const { name, email, username, age, gender, personality } = req.body;
         
-        // Check if user already has a bot (optional, depends on your requirements)
-        const existingBot = await Bot.findOne({ userId: userId });
-        if (existingBot) {
-            return res.status(409).json({ 
-                message: 'User already has a bot. Please update the existing bot instead.',
-                botId: existingBot._id
+        if (!name || !email || !username || !age || !gender) {
+            return res.status(400).json({ 
+                message: 'Missing required fields: name, email, username, age, and gender are required'
             });
         }
         
-        // Required fields validation
-        const { name, age, gender, personality } = req.body;
-        
-        if (!name || !age || !gender || !personality) {
-            return res.status(400).json({ message: 'Missing required fields: name, age, gender, and personality are required' });
+        // Check if username already exists
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(409).json({ 
+                message: 'Username already exists. Please choose a different username.'
+            });
         }
         
-        // Create and save the new bot
-        const newBot = new Bot({
-            ...req.body,
-            userId: userId,
-            createdBy: userId,
-            lastActiveAt: new Date()
+        // Generate new unique ID to be used for both user and bot
+        const botId = new mongoose.Types.ObjectId();
+        
+        // Create a new user for the bot
+        const botUser = new User({
+            _id: botId,
+            name,
+            email,
+            username,
+            password: botId.toString(), // Use the bot ID as password
+            bio: req.body.bio || `I am ${name}, a bot.`,
+            isBot: true,
+            verified: true // Auto-verify bots
         });
         
+        // Create the bot with all fields from request body
+        const newBot = new Bot({
+            _id: botId,
+            userId: botId, // Link to the user account
+            name,
+            username,
+            age,
+            gender,
+            nationality: req.body.nationality,
+            ethnicity: req.body.ethnicity,
+            culturalBackground: req.body.culturalBackground,
+            occupation: req.body.occupation,
+            education: req.body.education,
+            skills: req.body.skills || [],
+            hobbies: req.body.hobbies || [],
+            interests: req.body.interests || [],
+            physicalDescription: {
+                build: req.body.physicalDescription?.build || 'Average',
+                height: req.body.physicalDescription?.height || 'Medium',
+                hair: req.body.physicalDescription?.hair,
+                eyes: req.body.physicalDescription?.eyes,
+                distinguishingFeatures: req.body.physicalDescription?.distinguishingFeatures || 'None',
+                style: req.body.physicalDescription?.style
+            },
+            profilePicture: req.body.profilePicture,
+            generalDisposition: req.body.generalDisposition,
+            religionBeliefs: req.body.religionBeliefs,
+            personalityType: req.body.personalityType,
+            keyPersonalityTraits: req.body.keyPersonalityTraits || [],
+            strengths: req.body.strengths || [],
+            weaknesses: req.body.weaknesses || [],
+            communicationStyle: req.body.communicationStyle,
+            valuesAndCoreBeliefs: req.body.valuesAndCoreBeliefs || [],
+            aspirationsAndGoals: req.body.aspirationsAndGoals || [],
+            challengesAndStruggles: req.body.challengesAndStruggles || [],
+            familyDetails: {
+                maritalStatus: req.body.familyDetails?.maritalStatus,
+                spousePartner: req.body.familyDetails?.spousePartner || 'None',
+                children: req.body.familyDetails?.children || [],
+                parentsStatus: req.body.familyDetails?.parentsStatus,
+                siblings: req.body.familyDetails?.siblings || [],
+                relationshipWithFamily: req.body.familyDetails?.relationshipWithFamily
+            },
+            socialCircle: req.body.socialCircle,
+            dailyLifeSnippet: req.body.dailyLifeSnippet,
+            quirksAndHabits: req.body.quirksAndHabits || [],
+            briefBackstory: req.body.briefBackstory,
+            visibility: req.body.visibility || 'public',
+            lastActiveAt: new Date()
+        });
+
+        // Save both documents
+        await botUser.save();
         await newBot.save();
         
-        return res.status(201).json(newBot);
+        // Return the created bot and user (excluding sensitive fields)
+        return res.status(201).json({
+            success: true,
+            message: 'Bot and associated user account created successfully',
+            bot: newBot,
+            botUser: {
+                _id: botUser._id,
+                name: botUser.name,
+                username: botUser.username,
+                email: botUser.email,
+                isBot: botUser.isBot
+            }
+        });
     } catch (error) {
         console.error('Failed to create bot:', error);
         
@@ -144,20 +177,21 @@ router.post('/', async (req, res) => {
             });
         }
         
+        // Check for duplicate key errors (like username/email)
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyValue)[0];
+            return res.status(409).json({
+                message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists.`
+            });
+        }
+        
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 });
 
+
 // PUT /api/bots/:botId - Update a bot
 router.put('/:botId', async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
-
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-    
-    const userId = new mongoose.Types.ObjectId(userIdString);
     const { botId } = req.params;
     
     if (!mongoose.Types.ObjectId.isValid(botId)) {
@@ -170,10 +204,6 @@ router.put('/:botId', async (req, res) => {
         
         if (!bot) {
             return res.status(404).json({ message: 'Bot not found' });
-        }
-        
-        if (!bot.createdBy.equals(userId)) {
-            return res.status(403).json({ message: 'You do not have permission to update this bot' });
         }
         
         // Don't allow changing the userId or createdBy fields
@@ -208,14 +238,6 @@ router.put('/:botId', async (req, res) => {
 
 // DELETE /api/bots/:botId - Delete (or deactivate) a bot
 router.delete('/:botId', async (req, res) => {
-    const session = req.auth;
-    const userIdString = session?.user?.id ?? session?.user?.sub;
-
-    if (!session || !userIdString) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-    
-    const userId = new mongoose.Types.ObjectId(userIdString);
     const { botId } = req.params;
     
     if (!mongoose.Types.ObjectId.isValid(botId)) {
@@ -228,10 +250,6 @@ router.delete('/:botId', async (req, res) => {
         
         if (!bot) {
             return res.status(404).json({ message: 'Bot not found' });
-        }
-        
-        if (!bot.createdBy.equals(userId)) {
-            return res.status(403).json({ message: 'You do not have permission to delete this bot' });
         }
         
         // Option 1: Permanently delete
@@ -270,28 +288,6 @@ router.post('/:botId/interact', async (req, res) => {
         
         if (!bot) {
             return res.status(404).json({ message: 'Bot not found or inactive' });
-        }
-        
-        // Check visibility restrictions
-        const session = req.auth;
-        const userIdString = session?.user?.id ?? session?.user?.sub;
-        
-        if (bot.visibility !== 'public') {
-            // For private or followers_only bots, check authentication
-            if (!session || !userIdString) {
-                return res.status(401).json({ message: 'Authentication required to interact with this bot' });
-            }
-            
-            const userId = new mongoose.Types.ObjectId(userIdString);
-            
-            // If private, only the creator can interact
-            if (bot.visibility === 'private' && !bot.createdBy.equals(userId)) {
-                return res.status(403).json({ message: 'You do not have permission to interact with this bot' });
-            }
-            
-            // If followers_only, need to check if user is following the bot creator
-            // This would require additional logic and a follow relationship model
-            // For now, we'll just allow it (simplified)
         }
         
         // Process the interaction with the bot

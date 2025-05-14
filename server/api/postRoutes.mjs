@@ -34,7 +34,7 @@ router.post('/', upload.array('images', 5), async (req, res) => { // userId will
     }
 
     // Validate required fields
-    if (!heading || !content) {
+    if (!heading) {
         return res.status(400).json({ message: 'Missing required fields: heading and content' });
     }    // Optional: Validate visibility if provided, or rely on schema default
     // Map frontend visibility values to backend values

@@ -11,15 +11,17 @@ const router = express.Router();
  * Get personalized post recommendations for current user
  */
 router.get('/posts', async (req, res) => {
-  const session = req.auth;
-  const userIdString = session?.user?.id ?? session?.user?.sub;
+  const { userId: userIdString } = req.query; // Get userId from query
 
-  if (!session || !userIdString) {
-    return res.status(401).json({ message: 'Unauthorized' });
+  if (!userIdString) { // Added: Check for userIdString
+    return res.status(400).json({ message: 'Missing userId in query parameters' });
+  }
+  if (!mongoose.Types.ObjectId.isValid(userIdString)) { // Added: Validate userIdString
+    return res.status(400).json({ message: 'Invalid user ID format' });
   }
   
   try {
-    const userId = userIdString;
+    const userId = userIdString; // Use validated userIdString
     const limit = parseInt(req.query.limit) || 10;
     
     // Get recommendations from Neo4j
@@ -47,15 +49,17 @@ router.get('/posts', async (req, res) => {
  * Get friend recommendations for current user
  */
 router.get('/friends', async (req, res) => {
-  const session = req.auth;
-  const userIdString = session?.user?.id ?? session?.user?.sub;
+  const { userId: userIdString } = req.query; // Get userId from query
 
-  if (!session || !userIdString) {
-    return res.status(401).json({ message: 'Unauthorized' });
+  if (!userIdString) { // Added: Check for userIdString
+    return res.status(400).json({ message: 'Missing userId in query parameters' });
+  }
+  if (!mongoose.Types.ObjectId.isValid(userIdString)) { // Added: Validate userIdString
+    return res.status(400).json({ message: 'Invalid user ID format' });
   }
   
   try {
-    const userId = userIdString;
+    const userId = userIdString; // Use validated userIdString
     const limit = parseInt(req.query.limit) || 10;
     
     // Get recommendations from Neo4j
@@ -75,6 +79,7 @@ router.get('/friends', async (req, res) => {
         };
       } catch (err) {
         // If there's an error fetching additional data, just return the recommendation
+        console.error('Error enriching friend recommendation:', err); // Added error logging
         return recommendation;
       }
     }));
