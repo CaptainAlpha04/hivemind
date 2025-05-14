@@ -17,7 +17,7 @@ export default function LoginPage() {
   
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const callbackUrl = searchParams.get('callbackUrl') || '/home';
   
   // Check if user was redirected after registration or password reset
   const justRegistered = searchParams.get('registered') === 'true';
