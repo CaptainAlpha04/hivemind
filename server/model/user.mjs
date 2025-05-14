@@ -18,6 +18,10 @@ const userSchema = new mongoose.Schema({
         unique: true,
         index: true,
     },
+    bot: {
+        type: Boolean,
+        default: false
+    },
     password: { 
         type: String,
         required: function() {

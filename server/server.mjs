@@ -2,8 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose'; // Import Mongoose
-//import { Auth } from "@auth/express";
-// import { authConfig } from './auth.config.mjs'; // Ensure this path is correct
+import { ExpressAuth } from "@auth/express"; // Fixed import to use ExpressAuth instead of Auth
+import { authConfig } from './auth.config.mjs'; // Ensure this path is correct
+import { requireAuth, optionalAuth } from './middleware/authMiddleware.mjs'; // Import our auth middleware
 import postRoutes from './api/postRoutes.mjs'; // Import the new post routes
 import userRoutes from './api/userRoutes.mjs'; // New import for user routes
 import chatRoutes from './api/chatRoutes.mjs'; // New import for consolidated chat routes
@@ -59,8 +60,8 @@ app.use(cors({
   credentials: true
 })); // Update CORS configuration to match suggested code
 app.use(express.json());
-// Apply Auth.js middleware
-// app.use(Auth(authConfig)); // Ensure authConfig is correctly imported and configured
+// Apply Auth.js middleware ONLY to /auth/* routes
+app.use('/auth', ExpressAuth(authConfig)); // Mount Auth.js to handle only /auth routes
 
 app.get('/', async (req, res) => {
     res.send('API is running'); // Provide a response for the root route
@@ -68,8 +69,9 @@ app.get('/', async (req, res) => {
 
 // Using the routes
 //await generateActorPersona();
-app.use('/api/posts', postRoutes); // Mount the post routes under /api/posts
-app.use('/api/users', userRoutes); // Mount the user routes under /api/users
+// Apply our custom auth middleware to API routes that need authentication
+app.use('/api/posts', postRoutes); // Protected route - authentication required
+app.use('/api/users', optionalAuth, userRoutes); // Some endpoints may be public
 
 // Starting the server
 app.listen(port, () => {
