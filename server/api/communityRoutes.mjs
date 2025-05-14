@@ -3,16 +3,20 @@ import mongoose from 'mongoose';
 import Community from '../model/community.mjs';
 import Post from '../model/post.mjs';
 import User from '../model/user.mjs'; // Needed for adding user to community members/moderators
-import { authMiddleware } from '../middleware/authMiddleware.mjs'; // Assuming you have this
+import multer from 'multer'; // Assuming you are using multer for file uploads
 
 const router = express.Router();
+const upload = multer(); // Configure multer for file uploads
 
 // --- Community Management Endpoints ---
 
 // POST /api/communities - Create a new community
-router.post('/', authMiddleware, async (req, res) => {
-    const { name, description, isPrivate } = req.body;
-    const creatorId = req.auth?.user?.id;
+router.post('/', upload.fields([
+    { name: 'profilePicture', maxCount: 1 }, // Assuming you want to upload a profile picture
+    { name: 'bannerImage', maxCount: 1 } // Assuming you want to upload a banner image
+]) ,async (req, res) => {
+    const { name, description, isPrivate, userId } = req.body;
+    const creatorId = userId;
 
     if (!creatorId || !mongoose.Types.ObjectId.isValid(creatorId)) {
         return res.status(401).json({ message: 'User not authenticated or invalid ID' });
@@ -28,12 +32,24 @@ router.post('/', authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'A community with this name already exists' });
         }
 
+        const profilePic = req.files['profilePic'] ? req.files['profilePic'][0] : null;
+        const bannerImage = req.files['bannerImage'] ? req.files['bannerImage'][0] : null;
+
         const community = new Community({
             name,
             description,
             creator: creatorId,
             isPrivate: isPrivate || false,
             // moderators and members will be automatically populated with creator via schema pre-save hook
+            profilePic: profilePic ? {
+                data: profilePic.buffer,
+                contentType: profilePic.mimetype
+            } : null,
+
+            bannerImage: bannerImage ? {
+                data: bannerImage.buffer,
+                contentType: bannerImage.mimetype
+            } : null
         });
 
         await community.save();
@@ -55,8 +71,8 @@ router.post('/', authMiddleware, async (req, res) => {
 
 // GET /api/communities - Get all public communities (or communities user is part of if private)
 // Modified to accept a 'search' query parameter
-router.get('/', authMiddleware, async (req, res) => {
-    const userId = req.user?.id; // Using req.user.id due to auth removal
+router.get('/', async (req, res) => {
+    const userId = req.query.userId
     const { search } = req.query; // Get search query from request
 
     try {
@@ -101,7 +117,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // GET /api/communities/:communityId - Get a specific community by ID
-router.get('/:communityId', authMiddleware, async (req, res) => {
+router.get('/:communityId', async (req, res) => {
     const { communityId } = req.params;
     const userId = req.user?.id; // Using req.user.id due to auth removal
 
@@ -126,6 +142,13 @@ router.get('/:communityId', authMiddleware, async (req, res) => {
             }
         }
 
+        // Get all posts for this community
+        const posts = await Post.find({ community: communityId })
+            .populate('userId', 'username profilePicture')
+            .populate('community', 'name')
+            .sort({ createdAt: -1 })
+            .select('-images.data'); // Exclude image data for list view
+
         res.status(200).json(community);
     } catch (error) {
         console.error('Error fetching community:', error);
@@ -136,9 +159,8 @@ router.get('/:communityId', authMiddleware, async (req, res) => {
 // --- Community Membership Endpoints ---
 
 // POST /api/communities/:communityId/join - Join a community
-router.post('/:communityId/join', authMiddleware, async (req, res) => {
-    const { communityId } = req.params;
-    const userId = req.user?.id; // Using req.user.id due to auth removal
+router.post('/:communityId/join', async (req, res) => {
+    const { communityId, userId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(communityId)) { // Removed userId validation as it's optional now
         return res.status(400).json({ message: 'Invalid community ID format' });
@@ -175,9 +197,8 @@ router.post('/:communityId/join', authMiddleware, async (req, res) => {
 });
 
 // POST /api/communities/:communityId/leave - Leave a community
-router.post('/:communityId/leave', authMiddleware, async (req, res) => {
-    const { communityId } = req.params;
-    const userId = req.user?.id; // Using req.user.id due to auth removal
+router.post('/:communityId/leave', async (req, res) => {
+    const { communityId, userId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(communityId)) { // Removed userId validation
         return res.status(400).json({ message: 'Invalid community ID format' });
@@ -221,7 +242,7 @@ router.post('/:communityId/leave', authMiddleware, async (req, res) => {
 // --- Community Posts Endpoints ---
 
 // GET /api/communities/:communityId/posts - Get all posts for a specific community
-router.get('/:communityId/posts', authMiddleware, async (req, res) => {
+router.get('/:communityId/posts', async (req, res) => {
     const { communityId } = req.params;
     const userId = req.user?.id; // Using req.user.id due to auth removal
 
