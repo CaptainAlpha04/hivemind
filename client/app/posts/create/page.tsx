@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react'; // Import useSession
+import { useSession } from 'next-auth/react';
 import { PenLine, Eye, Users, Lock, ImageIcon, X, ChevronDown, Hash } from 'lucide-react';
 import Footer from '@/components/ui/Footer';
 import Header from '@/components/ui/Header';
@@ -27,7 +27,14 @@ export default function CreatePostPage() {
   
   const MAX_IMAGES = 5;
 
-  // Fetch communities when component mounts
+  // Authentication check on component mount
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent('/posts/create')}`);
+    }
+  }, [status, router]);
+
+  // Fetch communities when authenticated
   useEffect(() => {
     if (status === 'authenticated') {
       fetchCommunities();
@@ -194,36 +201,34 @@ export default function CreatePostPage() {
     }
   };
 
-  // Only show loading state during form submission
-  if (isSubmitting) {
+  // Show loading state during authentication check or form submission
+  if (status === 'loading' || status === 'unauthenticated' || isSubmitting) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900">
         <Header />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="spinner mb-4"></div>
-            <p className="text-slate-300">Creating post...</p>
+            <div className="w-10 h-10 border-4 border-teal-500/50 border-t-teal-500 rounded-full animate-spin mb-4"></div>
+            <p className="text-slate-300">
+              {isSubmitting 
+                ? "Creating post..." 
+                : status === 'loading' 
+                  ? "Checking authentication..." 
+                  : "Redirecting to login..."}
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Render the page
+  // Render the page (only when authenticated)
   return (
     <div className="drawer lg:drawer-open bg-gradient-to-br from-slate-950 to-slate-900">
       <input id="main-drawer" type="checkbox" className="drawer-toggle" />
       
       <div className="drawer-content flex flex-col min-h-screen">
         <Header />
-        
-        {/* Auth Status Badge - Development Only */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="fixed top-20 left-4 badge badge-lg badge-primary gap-2 z-50">
-            <div className={`badge ${status === 'authenticated' ? 'badge-success' : 'badge-error'}`}></div>
-            {status}
-          </div>
-        )}
         
         <main className="flex-1 flex items-center justify-center p-4 py-12 pt-20">
           <div className="card w-full max-w-2xl bg-base-200 shadow-xl">
