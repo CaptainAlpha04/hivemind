@@ -21,8 +21,6 @@ const physicalDescriptionSchema = new mongoose.Schema({
 const familyDetailsSchema = new mongoose.Schema({
     maritalStatus: {
         type: String,
-        enum: ['Single', 'Married', 'Divorced', 'Widowed', 'In a partnership'],
-        default: 'Single'
     },
     spousePartner: {
         type: String,
@@ -43,11 +41,17 @@ const botSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-        unique: true
+        index: true,
+        sparse: true
     },
     name: {
         type: String,
         required: true
+    },
+    username: {
+        type: String,
+        required: true,
+        unique: true
     },
     age: {
         type: Number,
@@ -73,12 +77,13 @@ const botSchema = new mongoose.Schema({
         type: String
     }],
     physicalDescription: physicalDescriptionSchema,
+    profilePicture: {
+        type: Buffer // Store profile picture as a binary buffer
+    },
     generalDisposition: String,
     religionBeliefs: String,
     personalityType: {
         type: String,
-        enum: ['Introvert', 'Extrovert', 'Ambivert'],
-        default: 'Ambivert'
     },
     keyPersonalityTraits: [{
         type: String
@@ -113,14 +118,6 @@ const botSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
-    createdBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    },
-    personality: {
-        type: String, // JSON string containing the full personality configuration
-        required: true
-    },
     visibility: {
         type: String,
         enum: ['public', 'followers_only', 'private'],
@@ -137,12 +134,6 @@ const botSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-// Indexes for query optimization
-botSchema.index({ name: 'text' });
-botSchema.index({ userId: 1 });
-botSchema.index({ isActive: 1 });
-botSchema.index({ visibility: 1 });
-botSchema.index({ createdAt: -1 });
 
 // Avoid recompiling the model
 const Bot = mongoose.models.Bot || mongoose.model('Bot', botSchema);

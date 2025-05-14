@@ -1,7 +1,7 @@
 @import url('https://cdn-uicons.flaticon.com/2.6.0/uicons-bold-rounded/css/uicons-bold-rounded.css');
 @import "tailwindcss";
 @plugin "daisyui" {
-  themes:  --default, light, night --prefersdark;
+  themes:  --default, winter, night --prefersdark;
 }
 
 
@@ -123,5 +123,21 @@
     font-family: "Fugaz One", sans-serif;
     font-weight: 400;
     font-style: normal;
+  }
+  
+  @keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .animate-gradient {
+    background-size: 200% auto;
+    animation: gradient 3s ease infinite;
+  }
+
+  .glow-border {
+    box-shadow:
+      0 0 24px 8px rgba(20, 184, 166, 0.4), /* teal glow */
+      0 4px 32px 0 rgba(0,0,0,0.2);          /* soft shadow */
   }
   

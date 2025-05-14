@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import Header from '@/components/Header';
+import Header from '@/components/ui/Navbar';
 
 export default function SettingsLayout({
   children,
@@ -11,59 +11,50 @@ export default function SettingsLayout({
 }) {
   const pathname = usePathname();
 
-  const settingsLinks = [
-    { href: '/settings/profile', label: 'Profile', icon: '👤' },
-    { href: '/settings/account', label: 'Account', icon: '🔑' },
-    { href: '/settings/preferences', label: 'Preferences', icon: '⚙️' },
-    { href: '/settings/privacy', label: 'Privacy', icon: '🔒' },
-    // Add your fifth section here if needed, e.g.:
-    // { href: '/settings/notifications', label: 'Notifications', icon: '🔔' },
+  const navItems = [
+    { label: 'Profile', href: '/settings/profile' },
+    { label: 'Account', href: '/settings/account' },
+    { label: 'Privacy', href: '/settings/privacy' },
+    { label: 'Preferences', href: '/settings/preferences' },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900/80 via-slate-800/70 to-slate-900/80">
-      {/* Header with glass/blur effect */}
-      <div className="fixed top-0 left-0 w-full z-30">
-        <div className="backdrop-blur-md bg-transparent border-b border-slate-800/60">
-          <Header />
+    <>
+      <div className="fixed top-0 left-0 w-full z-30 bg-transparent backdrop-blur-md">
+        <Header />
+      </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex pt-20 relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute w-[500px] h-[500px] rounded-full bg-gradient-to-r from-teal-500/10 to-cyan-500/10 blur-3xl -top-40 -left-40 animate-pulse-slow"></div>
+          <div className="absolute w-[500px] h-[500px] rounded-full bg-gradient-to-r from-blue-500/5 to-indigo-500/5 blur-3xl bottom-40 -right-40 animate-pulse-slow"></div>
+        </div>
+        
+        {/* Sidebar */}
+        <div className="w-72 border-r border-slate-800/50 p-6 relative backdrop-blur-sm bg-slate-900/30">
+          <div className="mb-8">
+            <span className="ml-2 font-bold text-lg bg-gradient-to-r from-teal-300 to-cyan-400 bg-clip-text text-transparent">Settings</span>
+          </div>
+          <nav className="flex flex-col gap-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center px-4 py-3 rounded-lg font-medium text-base transition-all mb-1
+                  ${pathname === item.href 
+                    ? 'bg-gradient-to-r from-teal-500/20 to-cyan-500/20 text-white border border-teal-500/30' 
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/50'}`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+        {/* Main Content Area */}
+        <div className="flex-1 p-8 relative">
+          {children}
         </div>
       </div>
-
-      {/* Background Gradients */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute w-[500px] h-[500px] rounded-full bg-gradient-to-r from-teal-500/10 to-cyan-500/10 blur-3xl -top-40 -left-40 animate-pulse-slow"></div>
-        <div className="absolute w-[500px] h-[500px] rounded-full bg-gradient-to-r from-blue-500/5 to-indigo-500/5 blur-3xl bottom-40 -right-40 animate-pulse-slow"></div>
-      </div>
-
-      <div className="container mx-auto px-2 md:px-6 py-8 relative pt-24">
-        <div className="flex flex-col md:flex-row gap-8">
-          {/* Sidebar */}
-          <aside className="w-full md:w-64 bg-transparent backdrop-blur-md rounded-xl p-4 md:p-6 border border-zinc-800 shadow-md">
-            <h2 className="text-xl font-semibold text-white mb-6">Settings</h2>
-            <nav className="space-y-2">
-              {settingsLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-medium text-base daisy-btn daisy-btn-ghost daisy-btn-block ${
-                    pathname === link.href
-                      ? 'bg-gradient-to-r from-teal-500/20 to-cyan-500/20 text-teal-400 daisy-btn-active'
-                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                  }`}
-                >
-                  <span className="text-lg">{link.icon}</span>
-                  <span>{link.label}</span>
-                </Link>
-              ))}
-            </nav>
-          </aside>
-
-          {/* Main Content */}
-          <main className="flex-1 bg-transparent backdrop-blur-md rounded-xl p-4 md:p-8 border border-zinc-800 shadow-md">
-            {children}
-          </main>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

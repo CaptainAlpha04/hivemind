@@ -1,10 +1,12 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import multer from 'multer'; // Import multer for file handling
-import bcrypt from 'bcrypt'; // For password hashing
+import multer from 'multer';
+import bcrypt from 'bcrypt';
 import User from '../model/user.mjs';
 import neo4jService from '../services/neo4jService.mjs';
 import { hash, compare } from 'bcrypt';
+import {sendWelcomeEmail, sendVerificationCode, sendPasswordResetCode } from '../services/emailService.mjs';
+import Token from '../model/token.mjs';
 
 const router = express.Router();
 
@@ -48,9 +50,8 @@ router.post('/', upload.single('profilePicture'), async (req, res) => {
             }
         }
         
-        // Hash the password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        // Hash the password - USE THIS STYLE CONSISTENTLY
+        const hashedPassword = await hash(password, 12);
         
         // Create new user object
         const newUser = new User({
@@ -170,45 +171,155 @@ router.put('/profilePicture', upload.single('profilePicture'), async (req, res) 
     }
 });
 
+// Send verification code
+router.post('/send-verification-code', async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
+  
+  try {
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+    
+    // Generate a 6-digit code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Save code in the database (using the Token model)
+    // First delete any existing codes for this email
+    await Token.deleteMany({ 
+      email,
+      type: 'verification-code'
+    });
+    
+    // Create token document with email instead of userId
+    const token = new Token({
+      email, // Store email since we don't have userId yet
+      token: verificationCode,
+      type: 'verification-code',
+      createdAt: new Date(),
+      // expires in 10 minutes
+    });
+    
+    await token.save();
+    
+    // Replace direct resend call with service function
+    const emailSent = await sendVerificationCode(email, verificationCode);
+    
+    if (!emailSent) {
+      return res.status(500).json({ message: 'Failed to send verification code' });
+    }
+    
+    return res.status(200).json({ 
+      message: 'Verification code sent to your email',
+      success: true
+    });
+  } catch (error) {
+    console.error('Send verification code error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Verify the code
+router.post('/verify-code', async (req, res) => {
+  const { email, code } = req.body;
+  
+  if (!email || !code) {
+    return res.status(400).json({ message: 'Email and verification code are required' });
+  }
+  
+  try {
+    const tokenDoc = await Token.findOne({ 
+      email,
+      token: code,
+      type: 'verification-code'
+    });
+    
+    if (!tokenDoc) {
+      return res.status(400).json({ message: 'Invalid or expired verification code' });
+    }
+    
+    // Check if code is expired (10 minutes)
+    const now = new Date();
+    const createdAt = new Date(tokenDoc.createdAt);
+    const diffMinutes = Math.floor((now - createdAt) / (1000 * 60));
+    
+    if (diffMinutes > 10) {
+      await Token.deleteOne({ _id: tokenDoc._id });
+      return res.status(400).json({ message: 'Verification code has expired' });
+    }
+    
+    // Code is valid
+    return res.status(200).json({ 
+      message: 'Email verified successfully',
+      success: true
+    });
+    
+  } catch (error) {
+    console.error('Verify code error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // Register endpoint
 router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
-
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: 'Name, email and password are required' });
-  }
+  const { name, email, password, username, verificationCode } = req.body;
 
   try {
-    // Check if user already exists with Mongoose
-    const existingUser = await User.findOne({ email });
+    // Verify the code one more time
+    const tokenDoc = await Token.findOne({ 
+      email,
+      token: verificationCode,
+      type: 'verification-code'
+    });
     
+    if (!tokenDoc) {
+      return res.status(400).json({ message: 'Invalid verification code. Please restart registration.' });
+    }
+    
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'Email already in use' });
+      return res.status(400).json({ message: 'Email already registered' });
     }
 
-    // Hash password and create user
+    // Create the user as already verified
     const hashedPassword = await hash(password, 12);
     
     const newUser = new User({
       name,
       email,
-      username: email.split('@')[0] + Math.floor(Math.random() * 1000), // Generate a username
+      username,
       password: hashedPassword,
-      authType: 'credentials',
-      createdAt: new Date(),
+      verified: true, // User is already verified
+      createdAt: new Date()
     });
 
-    await newUser.save();
+    const savedUser = await newUser.save();
     
-    console.log('User registered with ID:', newUser._id);
+    // Delete the verification token
+    await Token.deleteOne({ _id: tokenDoc._id });
+
+    // Replace direct resend call with service function
+    const emailSent = await sendWelcomeEmail(email, name);
+    
+    if (!emailSent) {
+      console.warn(`Failed to send welcome email to ${email}`);
+      // Continue anyway since the user account is created
+    }
+
     return res.status(201).json({ 
-      message: 'User registered successfully',
-      userId: newUser._id
+      message: 'Account created successfully!',
+      userId: savedUser._id,
+      success: true
     });
   } catch (error) {
-    console.error('Error registering user:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    console.error('Registration error:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -232,7 +343,11 @@ router.post('/oauth-user', async (req, res) => {
       // Update last login time
       await User.updateOne(
         { _id: user._id },
-        { $set: { lastLogin: new Date() } }
+        { $set: { 
+          lastLogin: new Date(),
+          // Update provider information if this was previously a password user
+          ...(user.authType !== 'oauth' ? { authType: 'oauth', provider } : {})
+        }}
       );
       
       return res.status(200).json({
@@ -242,15 +357,17 @@ router.post('/oauth-user', async (req, res) => {
       });
     }
 
-    // Create new OAuth user with Mongoose
+    // Create new OAuth user with Mongoose - WITHOUT a password
     const newUser = new User({
       name,
       email,
       username: email.split('@')[0] + Math.floor(Math.random() * 1000), // Generate a username
-      password: await hash(Math.random().toString(36).slice(-8), 12), // Random secure password
+      // No password for OAuth users
+      password: null,
       profileImage: image,
       authType: 'oauth',
       provider,
+      verified: true, // OAuth users are pre-verified
       createdAt: new Date(),
       lastLogin: new Date()
     });
@@ -276,38 +393,45 @@ router.post('/oauth-user', async (req, res) => {
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   
+  // Validation
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
   }
   
   try {
-    // Use Mongoose model instead of MongoDB client
-    const user = await User.findOne({ email }).lean();
+    const user = await User.findOne({ email });
     
-    if (!user || !user.password) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    // User not found
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+    
+    // Check if user is verified (if you require verification)
+    if (!user.verified) {
+      return res.status(403).json({ message: 'Please verify your email before signing in' });
     }
     
     // Check password
-    const isPasswordValid = await compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    const isMatch = await compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
     
-    // Update last login
-    await User.updateOne(
-      { _id: user._id },
-      { $set: { lastLogin: new Date() } }
-    );
+    // Password is correct, format the user object for NextAuth
+    const userToReturn = {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      image: user.profileImage || null
+      // Add any other fields you need
+    };
     
-    // Don't send password back
-    const { password: _, ...userWithoutPassword } = user;
-    
-    return res.status(200).json({
+    // Return success with user data
+    return res.status(200).json({ 
       success: true,
-      user: userWithoutPassword,
-      message: 'Login successful'
+      user: userToReturn
     });
+    
   } catch (error) {
     console.error('Login error:', error);
     return res.status(500).json({ message: 'Server error' });
@@ -532,6 +656,163 @@ router.post('/unblock/:userIdToUnblock', async (req, res) => {
         console.error('Failed to unblock user:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
     }
+});
+
+// Send password reset code
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
+  
+  try {
+    // Check if user exists with this email
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      // For security reasons, don't reveal that the email doesn't exist
+      return res.status(200).json({ 
+        message: 'If your email is registered, you will receive a reset code shortly.' 
+      });
+    }
+    
+    // Generate a 6-digit code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Delete any existing reset codes for this email
+    await Token.deleteMany({ 
+      userId: user._id,
+      type: 'password-reset'
+    });
+    
+    // Create token document
+    const token = new Token({
+      userId: user._id,
+      token: resetCode,
+      type: 'password-reset',
+      createdAt: new Date()
+    });
+    
+    await token.save();
+    
+    // Send reset code email
+    const emailSent = await sendPasswordResetCode(email, resetCode);
+    
+    if (!emailSent) {
+      console.warn(`Failed to send password reset email to ${email}`);
+    }
+    
+    return res.status(200).json({ 
+      message: 'If your email is registered, you will receive a reset code shortly.',
+      success: true 
+    });
+    
+  } catch (error) {
+    console.error('Send password reset code error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Verify reset code
+router.post('/verify-reset-code', async (req, res) => {
+  const { email, code } = req.body;
+  
+  if (!email || !code) {
+    return res.status(400).json({ message: 'Email and verification code are required' });
+  }
+  
+  try {
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid code or email' });
+    }
+    
+    const tokenDoc = await Token.findOne({ 
+      userId: user._id,
+      token: code,
+      type: 'password-reset'
+    });
+    
+    if (!tokenDoc) {
+      return res.status(400).json({ message: 'Invalid or expired code' });
+    }
+    
+    // Check if code is expired (10 minutes)
+    const now = new Date();
+    const createdAt = new Date(tokenDoc.createdAt);
+    const diffMinutes = Math.floor((now - createdAt) / (1000 * 60));
+    
+    if (diffMinutes > 10) {
+      await Token.deleteOne({ _id: tokenDoc._id });
+      return res.status(400).json({ message: 'Code has expired' });
+    }
+    
+    // Code is valid
+    return res.status(200).json({ 
+      message: 'Code verified successfully',
+      success: true
+    });
+    
+  } catch (error) {
+    console.error('Verify reset code error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Reset password
+router.post('/reset-password', async (req, res) => {
+  const { email, code, newPassword } = req.body;
+  
+  if (!email || !code || !newPassword) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+  
+  try {
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid code or email' });
+    }
+    
+    const tokenDoc = await Token.findOne({ 
+      userId: user._id,
+      token: code,
+      type: 'password-reset'
+    });
+    
+    if (!tokenDoc) {
+      return res.status(400).json({ message: 'Invalid or expired code' });
+    }
+    
+    // Check if code is expired (10 minutes)
+    const now = new Date();
+    const createdAt = new Date(tokenDoc.createdAt);
+    const diffMinutes = Math.floor((now - createdAt) / (1000 * 60));
+    
+    if (diffMinutes > 10) {
+      await Token.deleteOne({ _id: tokenDoc._id });
+      return res.status(400).json({ message: 'Code has expired' });
+    }
+    
+    // Update password
+    const hashedPassword = await hash(newPassword, 12);
+    user.password = hashedPassword;
+    await user.save();
+    
+    // Delete the reset token
+    await Token.deleteOne({ _id: tokenDoc._id });
+    
+    return res.status(200).json({ 
+      message: 'Password updated successfully',
+      success: true
+    });
+    
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
 });
 
 export default router;
