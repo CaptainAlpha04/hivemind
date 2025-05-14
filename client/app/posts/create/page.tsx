@@ -1,13 +1,14 @@
 'use client';
-
 import { useState, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react'; // Import useSession
 import { PenLine, Eye, Users, Lock, ImageIcon } from 'lucide-react';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 
 export default function CreatePostPage() {
   const router = useRouter();
+  const { data: session } = useSession(); // Get session data and status
   const [heading, setHeading] = useState('');
   const [content, setContent] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'Communities' | 'private'>('public');
@@ -44,6 +45,21 @@ export default function CreatePostPage() {
   // Handler for form submission
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (status === 'loading') {
+      console.log('Authentication status loading...');
+      // Optionally, show a loading indicator to the user
+      return; // Prevent submission while loading
+    }
+
+    if (status !== 'authenticated' || !session?.accessToken) {
+      console.error('User not authenticated or token not available.');
+      // Optionally, redirect to login or show an error message to the user
+      // Example: router.push('/auth/login');
+      alert('You must be logged in to create a post.');
+      return;
+    }
+
     const formData = new FormData();
     formData.append('heading', heading);
     formData.append('content', content);
@@ -54,6 +70,22 @@ export default function CreatePostPage() {
     // Implement form submission logic here
     console.log('Form submitted:', { heading, content, visibility, images });
     // Example: await fetch('/api/posts', { method: 'POST', body: formData });
+
+    const response = await fetch(process.env.NEXT_PUBLIC_API_URL + '/posts', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Authorization': `Bearer ${session.accessToken}`, // Use token from session
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('Post created:', data);
+      router.push('/posts');
+    } else {
+      console.error('Error creating post:', response.statusText);
+    }
   };
 
   return (
@@ -170,8 +202,10 @@ export default function CreatePostPage() {
         onClick={() => fileInputRef.current?.click()}
       >
         <div className="flex flex-col items-center">
-          <ImageIcon size={42} className="text-base-content/60 mb-3 text-teal-400" />
-          <p className="text-base-content/60 text-teal-400">Click to upload image(s)</p>
+          {/* Removed conflicting class 'text-base-content/60' */}
+          <ImageIcon size={42} className="mb-3 text-teal-400" /> 
+          {/* Removed conflicting class 'text-base-content/60' */}
+          <p className="text-teal-400">Click to upload image(s)</p>
         </div>
         <input
           type="file"
@@ -187,6 +221,8 @@ export default function CreatePostPage() {
         <div className="flex flex-wrap gap-4 mt-4">
           {imagePreviews.map((src, idx) => (
             <div key={idx} className="relative group">
+              {/* Consider using Next.js Image component for optimization if this is a Next.js project */}
+              {/* For now, keeping img tag as is, but be mindful of Next.js recommendations */}
               <img src={src} alt={`Preview ${idx + 1}`} className="w-28 h-28 object-cover rounded-lg border border-base-300" />
               <button
                 type="button"
