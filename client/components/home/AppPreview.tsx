@@ -1,8 +1,7 @@
- import Image from 'next/image';
- import { Zap } from 'lucide-react';
+import Image from 'next/image';
+import { Zap } from 'lucide-react';
       
       
-     
 export default function AppPreview(){
     return (
         <section className="py-24 px-4 relative overflow-hidden">
@@ -50,11 +49,11 @@ export default function AppPreview(){
                 <div className="absolute inset-0 bg-gradient-to-r from-teal-500/20 to-cyan-500/20 blur-3xl rounded-full transform -translate-y-1/4 translate-x-1/4 opacity-30"></div>
                 <div className="relative">
                   <Image 
-                    src="/placeholder.svg?height=600&width=400" 
+                    src="/images/human.jpg" 
                     alt="App Interface" 
                     width={400} 
                     height={600} 
-                    className="rounded-3xl border border-slate-700/50 shadow-2xl shadow-teal-500/10"
+                    className="rounded-3xl border border-slate-700/50 shadow-2xl shadow-teal-500/10 ring-4 ring-teal-400/60 ring-offset-2 ring-offset-slate-900 glow-border"
                   />
                 </div>
               </div>

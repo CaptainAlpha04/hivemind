@@ -52,12 +52,12 @@ export default function Preference() {
               <span className="text-sm font-medium text-white">Language</span>
             </div>
             <div className="dropdown w-full">
-              <div tabIndex={0} role="button" className="btn btn-outline w-full justify-between bg-zinc-800 text-zinc-300 border-teal-700 hover:bg-zinc-700">
+              <label tabIndex={0} className="btn btn-outline w-full justify-between bg-zinc-800 text-zinc-300 border-teal-700 hover:bg-zinc-700">
                 {preferences.language === 'en' ? 'English' :
                  preferences.language === 'es' ? 'Spanish' :
                  preferences.language === 'fr' ? 'French' : 'German'}
                 <ChevronDown className="h-4 w-4" />
-              </div>
+              </label>
               <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-zinc-800 rounded-box w-full">
                 <li><a onClick={() => setPreferences({ ...preferences, language: 'en' })}>English</a></li>
                 <li><a onClick={() => setPreferences({ ...preferences, language: 'es' })}>Spanish</a></li>
@@ -90,7 +90,7 @@ export default function Preference() {
                   value="dark" 
                   checked={preferences.theme === 'dark'} 
                   onChange={() => {}} 
-                  className="sr-only"
+                  className="radio radio-primary sr-only"
                 />
               </label>
               <label 
@@ -109,7 +109,7 @@ export default function Preference() {
                   value="light" 
                   checked={preferences.theme === 'light'} 
                   onChange={() => {}} 
-                  className="sr-only"
+                  className="radio radio-primary sr-only"
                 />
               </label>
               <label 
@@ -128,7 +128,7 @@ export default function Preference() {
                   value="system" 
                   checked={preferences.theme === 'system'} 
                   onChange={() => {}} 
-                  className="sr-only"
+                  className="radio radio-primary sr-only"
                 />
               </label>
             </div>
@@ -145,7 +145,7 @@ export default function Preference() {
                 <span className="text-sm text-zinc-300">Email Notifications</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary [--tglbg:theme(colors.teal.600)] [--tglchecked:theme(colors.teal.500)]"
+                  className="toggle toggle-primary"
                   checked={preferences.emailNotifications}
                   onChange={() => setPreferences({ ...preferences, emailNotifications: !preferences.emailNotifications })}
                 />
@@ -154,7 +154,7 @@ export default function Preference() {
                 <span className="text-sm text-zinc-300">Push Notifications</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary [--tglbg:theme(colors.teal.600)] [--tglchecked:theme(colors.teal.500)]"
+                  className="toggle toggle-primary"
                   checked={preferences.pushNotifications}
                   onChange={() => setPreferences({ ...preferences, pushNotifications: !preferences.pushNotifications })}
                 />
@@ -173,7 +173,7 @@ export default function Preference() {
                 <span className="text-sm text-zinc-300">Sound Effects</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary [--tglbg:theme(colors.teal.600)] [--tglchecked:theme(colors.teal.500)]"
+                  className="toggle toggle-primary"
                   checked={preferences.soundEnabled}
                   onChange={() => setPreferences({ ...preferences, soundEnabled: !preferences.soundEnabled })}
                 />
@@ -182,7 +182,7 @@ export default function Preference() {
                 <span className="text-sm text-zinc-300">Auto-play Media</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary [--tglbg:theme(colors.teal.600)] [--tglchecked:theme(colors.teal.500)]"
+                  className="toggle toggle-primary"
                   checked={preferences.autoPlay}
                   onChange={() => setPreferences({ ...preferences, autoPlay: !preferences.autoPlay })}
                 />

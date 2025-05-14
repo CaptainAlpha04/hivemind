@@ -18,9 +18,22 @@ const userSchema = new mongoose.Schema({
         unique: true,
         index: true,
     },
-    password: { // Store hashed passwords only!
+    password: { 
         type: String,
-        required: true,
+        required: function() {
+            return this.authType !== 'oauth'; // Only required if not OAuth
+        }
+    },
+    authType: {
+        type: String,
+        enum: ['credentials', 'oauth'],
+        default: 'credentials'
+    },
+    provider: {
+        type: String,
+        required: function() {
+            return this.authType === 'oauth'; // Only required for OAuth users
+        }
     },
     profilePicture: {
         type: Buffer, // Changed from String to Buffer

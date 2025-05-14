@@ -1,47 +1,56 @@
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import type { NextAuthConfig } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
 
-export const config = {
+export const authOptions = {
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
     CredentialsProvider({
-      name: "Credentials",
+      name: 'Credentials',
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null; // Return null instead of throwing an error
+        }
+
         try {
-          const response = await fetch("http://localhost:5000/api/users/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+          const response = await fetch(`${apiUrl}/api/users/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              email: credentials?.email,
-              password: credentials?.password,
-            }),
+              email: credentials.email,
+              password: credentials.password
+            })
           });
 
           const data = await response.json();
-          
-          if (response.ok && data.success) {
-            return {
-              id: data.user._id,
-              name: data.user.name,
-              email: data.user.email,
-              image: data.user.profileImage,
-            };
+
+          if (!response.ok) {
+            console.log("Login failed:", data.message);
+            
+            // Don't throw errors, just store the error type and return null
+            if (data.message?.includes('verify')) {
+              // Store the error type in a global variable or other state mechanism
+              console.log("Email not verified");
+            }
+            
+            return null; // Return null for authentication failure
           }
-          return null;
+
+          // Authentication successful
+          return data.user;
         } catch (error) {
-          console.error("Auth error:", error);
-          return null;
+          console.error("Login error:", error);
+          return null; // Return null for any errors
         }
-      },
+      }
+    }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     }),
   ],
   callbacks: {
@@ -49,7 +58,7 @@ export const config = {
       // Only for OAuth providers
       if (account?.provider === "google") {
         try {
-          const response = await fetch("http://localhost:5000/api/users/oauth-user", {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/oauth-user`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -98,9 +107,8 @@ export const config = {
   },
   pages: {
     signIn: "/auth/login",
-    signOut: "/auth/logout",
-    error: "/auth/error",
+    error: "/auth/error", // Make sure this is set correctly
   },
-} satisfies NextAuthConfig;
+};
 
-export const { handlers, auth, signIn, signOut } = NextAuth(config);
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);

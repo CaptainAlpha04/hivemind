@@ -56,10 +56,10 @@ export default function Privacy() {
               <span className="text-sm font-medium text-white">Profile Visibility</span>
             </div>
             <div className="dropdown w-full">
-              <div tabIndex={0} role="button" className="btn btn-outline w-full justify-between bg-zinc-800 text-zinc-300 border-teal-700 hover:bg-zinc-700">
+              <label tabIndex={0} className="btn btn-outline w-full justify-between bg-zinc-800 text-zinc-300 border-teal-700 hover:bg-zinc-700">
                 {privacySettings.profileVisibility.charAt(0).toUpperCase() + privacySettings.profileVisibility.slice(1)}
                 <ChevronDown className="h-4 w-4" />
-              </div>
+              </label>
               <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-zinc-800 rounded-box w-full">
                 <li><a onClick={() => setPrivacySettings({ ...privacySettings, profileVisibility: 'public' })}>Public</a></li>
                 <li><a onClick={() => setPrivacySettings({ ...privacySettings, profileVisibility: 'friends' })}>Friends Only</a></li>
@@ -79,7 +79,7 @@ export default function Privacy() {
                 <span className="text-sm text-zinc-300">Show Online Status</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary [--tglbg:theme(colors.teal.600)] [--tglchecked:theme(colors.teal.500)]"
+                  className="toggle toggle-primary"
                   checked={privacySettings.showOnlineStatus}
                   onChange={() => setPrivacySettings({ ...privacySettings, showOnlineStatus: !privacySettings.showOnlineStatus })}
                 />
@@ -88,7 +88,7 @@ export default function Privacy() {
                 <span className="text-sm text-zinc-300">Show Last Seen</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary [--tglbg:theme(colors.teal.600)] [--tglchecked:theme(colors.teal.500)]"
+                  className="toggle toggle-primary"
                   checked={privacySettings.showLastSeen}
                   onChange={() => setPrivacySettings({ ...privacySettings, showLastSeen: !privacySettings.showLastSeen })}
                 />
@@ -107,19 +107,19 @@ export default function Privacy() {
                 <span className="text-sm text-zinc-300">Allow Tagging</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary [--tglbg:theme(colors.teal.600)] [--tglchecked:theme(colors.teal.500)]"
+                  className="toggle toggle-primary"
                   checked={privacySettings.allowTagging}
                   onChange={() => setPrivacySettings({ ...privacySettings, allowTagging: !privacySettings.allowTagging })}
                 />
               </div>
               <div className="form-control w-full">
                 <div className="dropdown w-full">
-                  <div tabIndex={0} role="button" className="btn btn-outline w-full justify-between bg-zinc-800 text-zinc-300 border-teal-700 hover:bg-zinc-700">
+                  <label tabIndex={0} className="btn btn-outline w-full justify-between bg-zinc-800 text-zinc-300 border-teal-700 hover:bg-zinc-700">
                     {privacySettings.allowMessages === 'everyone' ? 'Everyone can message you' : 
                      privacySettings.allowMessages === 'friends' ? 'Only friends can message you' : 
                      'No one can message you'}
                     <ChevronDown className="h-4 w-4" />
-                  </div>
+                  </label>
                   <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-zinc-800 rounded-box w-full">
                     <li><a onClick={() => setPrivacySettings({ ...privacySettings, allowMessages: 'everyone' })}>Everyone can message you</a></li>
                     <li><a onClick={() => setPrivacySettings({ ...privacySettings, allowMessages: 'friends' })}>Only friends can message you</a></li>
@@ -141,7 +141,7 @@ export default function Privacy() {
                 <span className="text-sm text-zinc-300">Close Friends</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary [--tglbg:theme(colors.teal.600)] [--tglchecked:theme(colors.teal.500)]"
+                  className="toggle toggle-primary"
                   checked={privacySettings.closeFriends}
                   onChange={() => setPrivacySettings({ ...privacySettings, closeFriends: !privacySettings.closeFriends })}
                 />
@@ -150,7 +150,7 @@ export default function Privacy() {
                 <span className="text-sm text-zinc-300">Blocked</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary [--tglbg:theme(colors.teal.600)] [--tglchecked:theme(colors.teal.500)]"
+                  className="toggle toggle-primary"
                   checked={privacySettings.blocked}
                   onChange={() => setPrivacySettings({ ...privacySettings, blocked: !privacySettings.blocked })}
                 />
@@ -159,7 +159,7 @@ export default function Privacy() {
                 <span className="text-sm text-zinc-300">Hide story and live</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary [--tglbg:theme(colors.teal.600)] [--tglchecked:theme(colors.teal.500)]"
+                  className="toggle toggle-primary"
                   checked={privacySettings.hideStory}
                   onChange={() => setPrivacySettings({ ...privacySettings, hideStory: !privacySettings.hideStory })}
                 />

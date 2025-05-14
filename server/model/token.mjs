@@ -5,7 +5,15 @@ const tokenSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: function() {
+      return !this.email; // Only required if email is not present
+    }
+  },
+  email: {
+    type: String,
+    required: function() {
+      return !this.userId; // Only required if userId is not present
+    }
   },
   token: {
     type: String,
@@ -13,7 +21,7 @@ const tokenSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['verification', 'password-reset'],
+    enum: ['verification', 'verification-code', 'password-reset'],
     required: true
   },
   createdAt: {
@@ -24,15 +32,21 @@ const tokenSchema = new mongoose.Schema({
 });
 
 // Generate random token
-tokenSchema.statics.generateVerificationToken = async function(userId) {
+tokenSchema.statics.generateToken = async function(userId, type) {
+  // Delete any existing tokens first
+  await this.deleteMany({ userId, type });
+  
+  // Generate a secure random token
   const token = crypto.randomBytes(32).toString('hex');
   
+  // Create a new token document
   const tokenDoc = new this({
     userId,
     token,
-    type: 'verification'
+    type
   });
   
+  // Save to database
   await tokenDoc.save();
   return token;
 };

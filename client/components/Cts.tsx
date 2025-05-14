@@ -27,9 +27,7 @@ export default function Cts() {
               Get Started Now
               <ChevronRight size={18} className="ml-2" />
             </button>
-            <button className="inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-800/50 px-8 py-4 font-medium text-white transition-all duration-300 hover:bg-slate-800">
-              Learn More
-            </button>
+        
           </div>
           
           <div className="mt-12 flex items-center justify-center gap-8">

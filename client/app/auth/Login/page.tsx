@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn as clientSignIn } from 'next-auth/react'; // For client components
 import { signInWithProvider } from '../actions'; // Keep this for OAuth
 import Header from '@/components/Header';
+import FooterAuth from '@/components/auth/FooterAuth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -19,6 +20,7 @@ export default function LoginPage() {
   
   // Check if user was redirected after registration
   const justRegistered = searchParams.get('registered') === 'true';
+  const passwordReset = searchParams.get('reset') === 'true';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,15 +28,23 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      const result = await clientSignIn('credentials', { // Use clientSignIn here
+      const result = await clientSignIn('credentials', {
         email,
         password,
         redirect: false,
       });
       
       if (result?.error) {
-        setError('Invalid email or password');
-        console.error('Login failed:', result.error);
+        // NextAuth.js 5 returns a generic "CredentialsSignin" error for failed logins
+        // Let's handle that more gracefully
+        console.log("Sign-in result:", result);
+        
+        if (result.error === "CredentialsSignin") {
+          // This is the default error for failed credential login
+          setError('Invalid email or password');
+        } else {
+          setError(result.error || 'Authentication failed');
+        }
       } else {
         // Success! Redirect to the callbackUrl
         router.push(callbackUrl);
@@ -103,6 +113,14 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {passwordReset && (
+                <div className="mb-6 p-3 bg-green-500/10 border border-green-500/20 rounded-md">
+                  <p className="text-green-300 text-sm">
+                    Your password has been reset successfully. You can now sign in with your new password.
+                  </p>
+                </div>
+              )}
+
               {error && (
                 <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-md">
                   <p className="text-red-300 text-sm">{error}</p>
@@ -134,7 +152,7 @@ export default function LoginPage() {
                     <label htmlFor="password" className="block text-sm font-medium text-slate-200">
                       Password
                     </label>
-                    <Link href="/auth/forgot-password" className="text-xs font-medium text-teal-400 hover:text-teal-300 transition-colors">
+                    <Link href="/auth/forgot" className="text-xs font-medium text-teal-400 hover:text-teal-300 transition-colors">
                       Forgot password?
                     </Link>
                   </div>
@@ -227,18 +245,7 @@ export default function LoginPage() {
       </main>
 
       {/* Footer - Clean and Modern */}
-      <footer className="w-full py-6 px-6 z-20 mt-auto">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
-          <div className="flex items-center space-x-2 mb-4 md:mb-0">
-            <span className="text-slate-400 text-sm">© 2025 HiveMind. All rights reserved.</span>
-          </div>
-          <div className="flex space-x-8">
-            <Link href="/privacy" className="text-slate-400 hover:text-teal-400 text-sm transition-colors">Privacy</Link>
-            <Link href="/terms" className="text-slate-400 hover:text-teal-400 text-sm transition-colors">Terms</Link>
-            <Link href="/help" className="text-slate-400 hover:text-teal-400 text-sm transition-colors">Help</Link>
-          </div>
-        </div>
-      </footer>
+ <FooterAuth />
     </div>
   );
 }
