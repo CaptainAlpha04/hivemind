@@ -159,6 +159,7 @@ router.get('/:userId', async (req, res) => {
             hasProfilePicture: !!user.profilePicture,
             followersCount: user.followersCount,
             followingCount: user.followingCount,
+            profilePicture: user.profilePicture,
             createdAt: user.createdAt,
             following: user.following,
             settings: user.settings,

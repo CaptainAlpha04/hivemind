@@ -95,12 +95,13 @@ const PostCard: React.FC<PostCardProps> = ({
   };
 
   const handleSubmitReply = (commentId: string) => {
-    if (replyText[commentId]?.trim()) {
-      onReplyToComment(post._id, commentId, replyText[commentId]);
-      setReplyText(prev => ({ ...prev, [commentId]: '' }));
-      setReplyingTo(null);
-    }
-  };
+  console.log('Replying to comment:', commentId, 'with text:', replyText[commentId]);
+  if (replyText[commentId]?.trim()) {
+    onReplyToComment(post._id, commentId, replyText[commentId]);
+    setReplyText(prev => ({ ...prev, [commentId]: '' }));
+    setReplyingTo(null);
+  }
+};
 
   return (
     <div className="card bg-base-300 rounded-2xl p-6">

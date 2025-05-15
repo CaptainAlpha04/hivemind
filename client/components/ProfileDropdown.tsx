@@ -16,8 +16,7 @@ const ProfileDropdown = ({ profileImage, userName, userTag }: ProfileDropdownPro
       position: "relative", 
       marginLeft: 8 
     }}>
-      <button 
-        style={{ 
+      <button         style={{ 
           background: "transparent", 
           border: "none", 
           padding: 0, 

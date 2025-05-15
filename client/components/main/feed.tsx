@@ -188,10 +188,7 @@ export default function MainPage() {
     }
   };
 
-  const handleReplyToComment = async (postId: string, parentCommentId: string) => {
-    // Don't submit empty replies
-    if (!replyText[parentCommentId]?.trim()) return;
-    
+  const handleReplyToComment = async (postId: string, commentId: string, text: string) => {
     try {
       // Make sure we have a valid API URL
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -201,7 +198,9 @@ export default function MainPage() {
         return;
       }
       
-      const response = await fetch(`${apiUrl}/api/posts/${postId}/comments/${parentCommentId}/reply`, {
+      console.log('Replying to comment with text:', text);
+      
+      const response = await fetch(`${apiUrl}/api/posts/${postId}/comments/${commentId}/reply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -211,8 +210,8 @@ export default function MainPage() {
         },
         body: JSON.stringify({ 
           userId: session.user.id,
-          text: replyText[parentCommentId],
-          parentId: parentCommentId
+          text: text,
+          parentId: commentId
         }),
         credentials: 'include',
       });
@@ -229,7 +228,7 @@ export default function MainPage() {
           if (post._id === postId) {
             // Find the parent comment and add reply
             const updatedComments = post.comments.map(c => {
-              if (c._id === parentCommentId) {
+              if (c._id === commentId) {
                 const replies = c.replies || [];
                 return {...c, replies: [...replies, newReply]};
               }
@@ -241,10 +240,6 @@ export default function MainPage() {
           return post;
         })
       );
-      
-      // Clear the reply input and reset replying state
-      setReplyText(prev => ({ ...prev, [parentCommentId]: '' }));
-      setReplyingTo(null);
     } catch (err) {
       console.error("Failed to reply to comment:", err);
     }
