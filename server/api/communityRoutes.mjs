@@ -188,6 +188,53 @@ router.post('/:communityId/join', async (req, res) => {
     }
 });
 
+// GET /api/communities/:communityId/profile-picture - Get community profile picture
+router.get('/:communityId/profile-picture', async (req, res) => {
+  const { communityId } = req.params;
+  
+  if (!mongoose.Types.ObjectId.isValid(communityId)) {
+    return res.status(400).json({ message: 'Invalid community ID format' });
+  }
+
+  try {
+    const community = await Community.findById(communityId).select('profilePicture');
+    
+    if (!community || !community.profilePicture || !community.profilePicture.data) {
+      return res.status(404).sendFile(path.join(__dirname, '../public/default-profile.png'));
+    }
+
+    res.set('Content-Type', community.profilePicture.contentType);
+    res.send(community.profilePicture.data);
+  } catch (error) {
+    console.error('Error fetching community profile picture:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// GET /api/communities/:communityId/banner - Get community banner image
+router.get('/:communityId/banner', async (req, res) => {
+  const { communityId } = req.params;
+  
+  if (!mongoose.Types.ObjectId.isValid(communityId)) {
+    return res.status(400).json({ message: 'Invalid community ID format' });
+  }
+
+  try {
+    const community = await Community.findById(communityId).select('bannerImage');
+    
+    if (!community || !community.bannerImage || !community.bannerImage.data) {
+      return res.status(404).sendFile(path.join(__dirname, '../public/default-banner.png'));
+    }
+
+    res.set('Content-Type', community.bannerImage.contentType);
+    res.send(community.bannerImage.data);
+  } catch (error) {
+    console.error('Error fetching community banner image:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+
 // POST /api/communities/:communityId/leave - Leave a community
 router.post('/:communityId/leave', async (req, res) => {
     const { communityId, userId } = req.params;
