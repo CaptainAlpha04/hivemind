@@ -29,7 +29,6 @@ export default function SettingsLayout({
   const navItems = [
     { label: 'Profile', href: '/settings/profile' },
     { label: 'Account', href: '/settings/account' },
-    { label: 'Privacy', href: '/settings/privacy' },
     { label: 'Preferences', href: '/settings/preferences' },
   ];
 
