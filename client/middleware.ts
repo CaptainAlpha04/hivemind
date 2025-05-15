@@ -25,8 +25,8 @@ export const config = {
   matcher: [
     '/posts/create',
     '/posts/edit/:path*',
-    '/chat',
-    '/chat/:path*',
+    // '/chat',
+    // '/chat/:path*',
     '/settings',
     '/settings/:path*',
     '/profile',
