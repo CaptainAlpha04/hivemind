@@ -1,15 +1,3 @@
-<<<<<<< HEAD
-import HivePage from '@/components/hives/feed'
-import React from 'react'
-
-export default function page() {
-  return (
-    <div>
-    <HivePage />
-    </div>
-  )
-}
-=======
 "use client";
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
@@ -152,7 +140,7 @@ export default function HivesPage() {
   // Show loading state while checking authentication
   if (status === "loading" || isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900">
+      <div className="min-h-screen flex flex-col bg-base-300">
         <Header />
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin h-8 w-8 border-4 border-base-content rounded-full border-t-transparent"></div>
@@ -163,7 +151,7 @@ export default function HivesPage() {
 
   // Main content - only shown to authenticated users
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900">
+    <div className="min-h-screen flex flex-col bg-base-300">
       <Header />
       <div className="flex mt-[70px]">
         <Sidebar />
@@ -280,4 +268,3 @@ export default function HivesPage() {
     </div>
   );
 } 
->>>>>>> c59cbc6731103cb5019c3971ce0ba4b0e432e69d
