@@ -7,6 +7,7 @@ import neo4jService from '../services/neo4jService.mjs';
 import { hash, compare } from 'bcrypt';
 import {sendWelcomeEmail, sendVerificationCode, sendPasswordResetCode } from '../services/emailService.mjs';
 import Token from '../model/token.mjs';
+import sharp from 'sharp';
 
 const router = express.Router();
 
@@ -25,6 +26,30 @@ const upload = multer({
     fileFilter: fileFilter,
     limits: { fileSize: 5 * 1024 * 1024 } // Limit file size to 5MB
 });
+
+// Helper function to process profile images - crop to square and resize
+const processProfileImage = async (buffer) => {
+  try {
+    // Get image metadata to determine dimensions
+    const metadata = await sharp(buffer).metadata();
+    const size = Math.min(metadata.width, metadata.height); // Get the smaller dimension for square crop
+    
+    // Calculate crop region (centered)
+    const left = Math.floor((metadata.width - size) / 2);
+    const top = Math.floor((metadata.height - size) / 2);
+    
+    // Process the image: crop to square, resize to standard size, maintain quality
+    return await sharp(buffer)
+      .extract({ left, top, width: size, height: size }) // Crop to square
+      .resize(256, 256) // Resize to standard size (you can adjust as needed)
+      .jpeg({ quality: 85 }) // Convert to JPEG with good quality
+      .toBuffer();
+  } catch (error) {
+    console.error('Error processing profile image:', error);
+    // Return original buffer if processing fails
+    return buffer;
+  }
+};
 
 // POST /api/users - Create a new user
 router.post('/', upload.single('profilePicture'), async (req, res) => {
@@ -70,10 +95,10 @@ router.post('/', upload.single('profilePicture'), async (req, res) => {
             },
             blockedUserIds: []
         });
-        
-        // Add profile picture if uploaded
+          // Add profile picture if uploaded
         if (req.file) {
-            newUser.profilePicture = req.file.buffer;
+            const processedImageBuffer = await processProfileImage(req.file.buffer);
+            newUser.profilePicture = processedImageBuffer;
         }
         
         // Save the user to the database
@@ -107,6 +132,44 @@ router.post('/', upload.single('profilePicture'), async (req, res) => {
                     return acc;
                 }, {})
             });
+        }
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// GET /api/users/:userId - Get a user by ID
+router.get('/:userId', async (req, res) => {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    try {
+        const user = await User.findById(userId).select('-password').lean(); // Exclude passwords
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Format the user object to exclude sensitive data
+        const userResponse = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            username: user.username,
+            bio: user.bio,
+            hasProfilePicture: !!user.profilePicture,
+            followersCount: user.followersCount,
+            followingCount: user.followingCount,
+            createdAt: user.createdAt,
+            following: user.following,
+            settings: user.settings,
+            blockedUserIds: user.blockedUserIds,
+            bannerColor: user.bannerColor,
+        };
+        return res.status(200).json(userResponse);
+    } catch (error) {
+        console.error('Failed to fetch user:', error);
+        if (error.name === 'CastError') {
+            return res.status(400).json({ message: 'Invalid user ID format' });
         }
         return res.status(500).json({ message: 'Internal Server Error' });
     }
@@ -149,6 +212,71 @@ router.get('/:userId/profilePicture', async (req, res) => {
     }
 });
 
+// PUT /api/users/:userId/profileUpdate - Update a user's profile
+router.put('/:userId/profileUpdate', upload.single('profilePicture'), async (req, res) => { // Added upload.single middleware
+  const { userId } = req.params;
+  const { name, bio, bannerColor } = req.body; // Text fields from FormData
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Invalid user ID format' });
+  }
+
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update user fields if provided
+    if (name) {
+      user.name = name;
+    }
+    if (bio) {
+      user.bio = bio;
+    }
+    if (bannerColor) {
+      user.bannerColor = bannerColor;
+    }    // Update profile picture if a new file is uploaded
+    if (req.file) {
+      // Process the image to crop it to square format
+      const processedImageBuffer = await processProfileImage(req.file.buffer);
+      user.profilePicture = processedImageBuffer;
+    }
+
+    await user.save();
+
+    // Respond with the updated user data (excluding sensitive information)
+    const updatedUserResponse = {
+      _id: user._id,
+      name: user.name,
+      email: user.email, // Keep email in response if needed by client
+      username: user.username, // Keep username if needed
+      bio: user.bio,
+      bannerColor: user.bannerColor,
+      hasProfilePicture: !!user.profilePicture, // Indicate if picture exists
+      followersCount: user.followersCount,
+      followingCount: user.followingCount,
+      createdAt: user.createdAt,
+    };
+
+    return res.status(200).json({ message: 'Profile updated successfully', user: updatedUserResponse });
+  } catch (error) {
+    console.error('Failed to update profile:', error);
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ 
+            message: 'Validation Error', 
+            errors: Object.keys(error.errors).reduce((acc, key) => {
+                acc[key] = error.errors[key].message;
+                return acc;
+            }, {})
+        });
+    }
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+
 // PUT /api/users/profilePicture - Update current user's profile picture
 router.put('/profilePicture', upload.single('profilePicture'), async (req, res) => {
     const { userId: userIdString } = req.body; // Get userId from body
@@ -171,9 +299,9 @@ router.put('/profilePicture', upload.single('profilePicture'), async (req, res) 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        
-        // Update user's profile picture
-        user.profilePicture = req.file.buffer;
+          // Process and update user's profile picture
+        const processedImageBuffer = await processProfileImage(req.file.buffer);
+        user.profilePicture = processedImageBuffer;
         await user.save();
         
         return res.status(200).json({ message: 'Profile picture updated successfully' });
@@ -832,5 +960,162 @@ router.post('/reset-password', async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 });
+
+// DELETE /api/users/:userId - Delete a user
+router.delete('/:userId', async (req, res) => {
+    const { userId } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    
+    try {
+        const user = await User.findByIdAndDelete(userId);
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Optionally, delete the user's profile picture from storage if applicable
+        
+        return res.status(200).json({ message: 'User deleted successfully' });
+        
+    } catch (error) {
+        console.error('Failed to delete user:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// PUT /api/users/:userId/email - Update a user email
+router.put('/:userId/email', async (req, res) => {
+    const { userId } = req.params;
+    const { email, currentEmail } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+        }
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+        if (!currentEmail) {
+            return res.status(400).json({ message: 'Current email is required' });
+        }
+        try {
+            const user = await User.findById(userId);
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            // Check if the new email is already in use
+            const existingUser = await User.findOne({ email: email });
+            if (existingUser && existingUser._id.toString() !== userId) {
+                return res.status(400).json({ message: 'Email already in use' });
+            }
+            if (user.email === email) {
+                return res.status(400).json({ message: 'New email cannot be the same as current email' });
+            }
+            if (user.email !== currentEmail) {
+                return res.status(400).json({ message: 'Current email does not match' });
+            }
+            user.email = email;
+            await user.save();
+            return res.status(200).json({ message: 'Email updated successfully', user });
+        } catch (error) {
+            console.error('Failed to update email:', error);
+            return res.status(500).json({ message: 'Internal Server Error' });
+        }
+    });
+
+// PUT /api/users/:userId - Update a user
+router.put('/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const { name, email, username, bio } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Update user fields
+        if (name) user.name = name;
+        if (email) user.email = email;
+        if (username) user.username = username;
+        if (bio) user.bio = bio;
+
+        await user.save();
+        
+        return res.status(200).json({ message: 'User updated successfully', user });
+        
+    } catch (error) {
+        console.error('Failed to update user:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// PUT /api/users/:userId/profilePicture - Update a user's profile picture
+router.put('/:userId/profilePicture', upload.single('profilePicture'), async (req, res) => {
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+          // Update user's profile picture
+        if (req.file) {
+            const processedImageBuffer = await processProfileImage(req.file.buffer);
+            user.profilePicture = processedImageBuffer;
+        }
+        
+        await user.save();
+        
+        return res.status(200).json({ message: 'Profile picture updated successfully' });
+        
+    } catch (error) {
+        console.error('Failed to update profile picture:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// PUT /api/users/:userId/password - Update a user's password
+router.put('/:userId/password', async (req, res) => {
+    const { userId } = req.params;
+    const { newPassword } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Update user's password
+        if (newPassword) {
+            user.password = await hash(newPassword, 12);
+        }
+        
+        await user.save();
+        
+        return res.status(200).json({ message: 'Password updated successfully' });
+        
+    } catch (error) {
+        console.error('Failed to update password:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
 
 export default router;

@@ -38,13 +38,13 @@ const ProfileDropdown = () => {
           <div className="text-primary text-xs">{session?.user?.email}</div>
         </div>
         <li>
-          <a className="flex items-center hover:text-primary hover:hover:bg-gray-700/20">
+          <Link href="/settings/profile" className="flex items-center hover:text-primary hover:hover:bg-gray-700/20">
             <User size={16} />
             Profile
-          </a>
+          </Link>
         </li>
         <li>
-          <Link href="/profile/settings" className="flex items-center hover:text-primary hover:bg-gray-700/20">
+          <Link href="/settings/account" className="flex items-center hover:text-primary hover:bg-gray-700/20">
             <Settings size={16} />
             Settings
           </Link>

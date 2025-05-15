@@ -1,27 +1,50 @@
 'use client';
 import { useState } from 'react';
 import Image from 'next/image';
-import { User, Pencil, Check, Palette, Tag, Sparkles, BookImage, UserPen } from 'lucide-react';
+import { User, Pencil, Check, Palette, Sparkles, BookImage, UserPen } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { useEffect, useRef } from 'react';
 
 export default function ProfileSettings() {
   // State management
   const [displayName, setDisplayName] = useState('maad9110');
-  const [pronouns, setPronouns] = useState('');
   const [about, setAbout] = useState('');
-  const [avatar] = useState('/default-avatar.png');
-  const [bannerColor, setBannerColor] = useState('#06b6d4');
+  const [bannerColor, setBannerColor] = useState('bg-cyan-500');
   const [saved, setSaved] = useState(false);
+  const { data: session, status } = useSession();
+  const [loading, setLoading] = useState(true);
+  const [profilePicture, setProfilePicture] = useState<File | string>('/images/user.png');
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Simulate saving
-    setSaved(true);
-    // TODO: Implement profile update logic
-    console.log('Profile update:', { displayName, pronouns, about, avatar, bannerColor });
-    // Reset the saved animation after 2 seconds
-    setTimeout(() => {
-      setSaved(false);
-    }, 2000);
+    if (!session?.user?.id) return;
+
+    const formData = new FormData();
+    formData.append('name', displayName); // Changed from displayName to name
+    formData.append('bio', about); // Changed from about to bio
+    formData.append('bannerColor', bannerColor);
+
+    if (profilePicture instanceof File) {
+      formData.append('profilePicture', profilePicture);
+    }
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${session.user.id}/profileUpdate`, {
+      method: 'PUT',
+      // Headers are set automatically by the browser for FormData
+      body: formData,
+    });
+
+    if (res.ok) {
+      console.log('Profile updated successfully');
+      setSaved(true);
+      // Optionally, refresh user data or update profilePicture state with new URL if backend returns it
+      // For simplicity, we'll rely on next fetch or a page refresh to show server-persisted image.
+      // If the backend returns the new image URL or a flag, you can update `profilePicture` state here.
+      // Example: const data = await res.json(); if (data.user.hasProfilePicture) setProfilePicture(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${session?.user?.id}/profilePicture?timestamp=${new Date().getTime()}`);
+    } else {
+      console.error('Failed to update profile');
+    }
   };
 
   const handleDisplayNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,16 +54,93 @@ export default function ProfileSettings() {
     }
   };
 
+  const getUserData = async () => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    setLoading(true); // Ensure loading is true at the start
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log('User data:', data);
+      setDisplayName(data.name || '');
+      setAbout(data.bio || '');
+      setBannerColor(data.bannerColor || 'bg-cyan-500');      if (data.hasProfilePicture) {
+        // Add a timestamp to break cache
+        setProfilePicture(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/profilePicture?timestamp=${new Date().getTime()}`);
+      } else {
+        setProfilePicture('/images/user.png');
+      }
+    } else {
+      console.error('Failed to fetch user data');
+      setProfilePicture('/images/user.png'); // Fallback
+    }
+    setLoading(false);
+  };
+
   const colors = [
-    '#06b6d4', // Cyan
-    '#8b5cf6', // Violet
-    '#ec4899', // Pink
-    '#f59e0b', // Amber
-    '#10b981', // Emerald
+    'bg-cyan-500', // Cyan
+    'bg-violet-500', // Violet
+    'bg-pink-500', // Pink
+    'bg-orange-500', // Amber
+    'bg-green-500', // Emerald
   ];
+  // Fetch user data when the component mounts
+  useEffect(() => {
+    getUserData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
+    useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id) {
+      getUserData();
+    } else if (status === 'unauthenticated') {
+      setLoading(false); // Not logged in, stop loading
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session?.user?.id]);
+
+
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setProfilePicture(file); // Store the File object for upload
+      setSaved(false); // Reset saved state as changes are made
+    }
+  };
+
+  // Show loading state during authentication check
+  if (loading) {
+    return (
+      <section className='bg-base-100 min-h-screen w-screen bg-gradient-to-br flex justify-center items-center'>
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-teal-500/50 border-t-teal-500 rounded-full animate-spin mb-4"></div>
+          <p className="text-slate-300">Loading profile...</p>
+        </div>
+      </section>
+    );
+  }
 
   return(
     <div className="min-h-screen bg-black text-zinc-200 p-4 md:p-8">
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        accept="image/*"
+        onChange={handleProfilePictureChange}
+      />
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="space-y-2">
@@ -64,6 +164,27 @@ export default function ProfileSettings() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {/* Left: Editable Fields */}
             <div className="md:col-span-2 space-y-8">
+              {/* Avatar */}
+                    <div 
+                      className="relative -mt-10 mb-3 flex justify-center cursor-pointer"
+                      onClick={handleImageClick} // Make the area clickable
+                    >
+                      <div className="relative">
+                        <Image
+                          src={profilePicture instanceof File ? URL.createObjectURL(profilePicture) : profilePicture}
+                          alt="Avatar"
+                          width={64}
+                          height={64}
+                          className="rounded-full border-4 border-zinc-900 bg-zinc-800 object-cover"
+                          onError={() => setProfilePicture('/images/user.png')} // Fallback for broken images
+                        />
+                        <div // Changed button to div, click handled by parent
+                          className="absolute bottom-0 right-0 bg-teal-500 rounded-full p-1 border-2 border-zinc-900"
+                        >
+                          <Pencil size={12} color="white"/>
+                        </div>
+                      </div>
+                    </div>
               {/* Display Name */}
               <div className="space-y-2">
                 <label htmlFor="displayName" className="flex items-center gap-2 text-white font-medium">
@@ -85,22 +206,6 @@ export default function ProfileSettings() {
                   </div>
                 </div>
               </div>
-              {/* Pronouns */}
-              <div className="space-y-2">
-                <label htmlFor="pronouns" className="flex items-center gap-2 text-white font-medium">
-                  <Tag size={18} className="h-7 w-7 text-teal-400"/>
-                  Pronouns
-                </label>
-                <p className="text-xs text-zinc-400">Add your preferred pronouns</p>
-                <input
-                  type="text"
-                  id="pronouns"
-                  value={pronouns}
-                  onChange={(e) => setPronouns(e.target.value)}
-                  placeholder="Add your pronouns"
-                  className="input input-bordered input-lg w-full bg-zinc-900 border-teal-700 text-white"
-                />
-              </div>
               {/* Banner Color */}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-white font-medium">
@@ -113,8 +218,7 @@ export default function ProfileSettings() {
                     <button
                       key={color}
                       type="button"
-                      style={{ backgroundColor: color }}
-                      className={`w-8 h-8 rounded-full border-2 focus:outline-none transition-all relative ${bannerColor === color ? 'border-teal-400' : 'border-transparent'}`}
+                      className={`w-8 h-8 rounded-full border-2 focus:outline-none transition-all relative ${color} ${bannerColor === color ? 'border-teal-400' : 'border-transparent'}`}
                       onClick={() => setBannerColor(color)}
                     >
                       {bannerColor === color && (
@@ -162,16 +266,14 @@ export default function ProfileSettings() {
                 <div className="bg-zinc-900 rounded-xl shadow-lg border border-zinc-800 overflow-hidden">
                   {/* Banner */}
                   <div
-                    className="w-full h-20"
-                    style={{ background: bannerColor }}
-                  />
+                    className={`w-full h-20 ${bannerColor}`}/>
                   {/* Profile Content */}
                   <div className="p-4">
                     {/* Avatar */}
                     <div className="relative -mt-10 mb-3 flex justify-center">
                       <div className="relative">
                         <Image
-                          src={avatar}
+                          src={profilePicture as string}
                           alt="Avatar"
                           width={64}
                           height={64}
@@ -188,7 +290,6 @@ export default function ProfileSettings() {
                     {/* Display Name and Username */}
                     <div className="text-center mt-2">
                       <div className="text-lg font-bold text-white">{displayName || 'Your Name'}</div>
-                      {pronouns && <div className="text-teal-400 text-xs mb-1">{pronouns}</div>}
                       <div className="text-zinc-400 text-xs">hammadahmed9110</div>
                     </div>
                     {/* About Me Section */}
@@ -210,9 +311,15 @@ export default function ProfileSettings() {
                 </div>
                 {/* Nameplate Preview */}
                 <div className="mt-4">
-                  <h4 className="text-xs font-medium text-zinc-400 mb-2">Nameplate Preview</h4>
                   <div className="flex items-center gap-2 bg-zinc-800 rounded-lg px-3 py-1.5 border border-zinc-700">
-                    <Image src={avatar} alt="Avatar" width={18} height={18} className="rounded-full" />
+                    <Image 
+                      src={profilePicture instanceof File ? URL.createObjectURL(profilePicture) : profilePicture} 
+                      alt="Avatar" 
+                      width={18} 
+                      height={18} 
+                      className="rounded-full object-cover"
+                      onError={() => setProfilePicture('/images/user.png')} // Fallback
+                    />
                     <span className="text-white text-sm font-medium">{displayName || 'Your Name'}</span>
                   </div>
                 </div>
