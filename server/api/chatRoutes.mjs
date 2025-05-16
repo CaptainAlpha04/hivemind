@@ -130,10 +130,143 @@ router.post('/messages', upload.single('image'), async (req, res) => {
     } catch (error) {
         console.error('Failed to send message:', error);
         if (error instanceof multer.MulterError) {
-             return res.status(400).json({ message: `Multer error: ${error.message}` });
+            return res.status(400).json({ message: `Multer error: ${error.message}` });
         } else if (error.message === 'Not an image! Please upload only images.') {
             return res.status(400).json({ message: error.message });
         }
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+router.get('/users', async (req, res) => {
+  try {
+    const users = await User.find().select('name username profilePicture role').lean();
+    return res.status(200).json(users);
+  } catch (error) {
+    console.error('Failed to fetch users:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+// Update the conversations route with better error handling
+
+router.post('/conversations', async (req, res) => {
+    // Add debugging to help identify the issue
+    console.log('Creating conversation with participants:', req.body);
+    
+    const { participantIds } = req.body;
+    
+    if (!participantIds || !Array.isArray(participantIds) || participantIds.length < 2) {
+        console.log('Invalid participant IDs:', participantIds);
+        return res.status(400).json({ message: 'At least two valid participant IDs are required' });
+    }
+    
+    // Validate participant IDs
+    for (const id of participantIds) {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            console.log('Invalid user ID format:', id);
+            return res.status(400).json({ message: `Invalid user ID format: ${id}` });
+        }
+    }
+    
+    try {
+        // Check if all users exist
+        const participantObjectIds = participantIds.map(id => new mongoose.Types.ObjectId(id));
+        console.log('Looking for users with IDs:', participantObjectIds);
+        
+        const users = await User.find({ _id: { $in: participantObjectIds } });
+        console.log('Found users:', users.map(u => u.username));
+        
+        if (users.length !== participantIds.length) {
+            console.log('Some users not found. Expected:', participantIds.length, 'Found:', users.length);
+            return res.status(404).json({ message: 'One or more users not found' });
+        }
+        
+        // Check if a conversation between these users already exists
+        console.log('Checking for existing conversation between users');
+        const existingConversation = await Conversation.findOne({
+            participants: { $all: participantObjectIds },
+            isGroupChat: false
+        });
+        
+        if (existingConversation) {
+            console.log('Found existing conversation:', existingConversation._id);
+            return res.status(200).json(existingConversation);
+        }
+        
+        // Create new conversation
+        console.log('Creating new conversation between users');
+        const newConversation = new Conversation({
+            participants: participantObjectIds,
+            isGroupChat: false,
+            name: `Chat between ${users.map(u => u.username).join(' and ')}`
+        });
+        
+        await newConversation.save();
+        console.log('Created new conversation with ID:', newConversation._id);
+        
+        // Update users' conversationIds arrays
+        console.log('Updating user conversation IDs');
+        await User.updateMany(
+            { _id: { $in: participantObjectIds } },
+            { $addToSet: { conversationIds: newConversation._id } }
+        );
+        
+        return res.status(201).json(newConversation);
+    } catch (error) {
+        console.error('Failed to create conversation:', error);
+        return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+    }
+});
+// GET /api/chat/:conversationId/messages - Get messages for a conversation
+router.get('/:conversationId/messages', async (req, res) => {
+    const { conversationId } = req.params;
+    const { userId } = req.query;
+    
+    if (!userId) {
+        return res.status(400).json({ message: 'Missing userId in query parameters' });
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        return res.status(400).json({ message: 'Invalid conversation ID format' });
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    
+    try {
+        // Verify the user is a participant in the conversation
+        const conversation = await Conversation.findOne({
+            _id: new mongoose.Types.ObjectId(conversationId),
+            participants: new mongoose.Types.ObjectId(userId)
+        });
+        
+        if (!conversation) {
+            return res.status(403).json({ message: 'User is not a participant in this conversation' });
+        }
+        
+        // Get messages for the conversation
+        const messages = await Message.find({
+            conversationId: new mongoose.Types.ObjectId(conversationId)
+        })
+        .sort({ createdAt: 1 })
+        .populate('senderId', 'username profilePicture')
+        .lean();
+        
+        // Format messages for response
+        const formattedMessages = messages.map(message => {
+            const msg = { ...message };
+            if (msg.image) {
+                // Don't send image data directly
+                delete msg.image.data;
+                msg.hasImage = true;
+            }
+            return msg;
+        });
+        
+        return res.status(200).json(formattedMessages);
+    } catch (error) {
+        console.error('Failed to fetch messages:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 });
