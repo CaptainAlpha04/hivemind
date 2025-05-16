@@ -28,6 +28,7 @@ export default function AccountSettings() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [passwordError, setPasswordError] = useState('');
   
   const validatePassword = (password: string) => {
     let strength = 0;
@@ -61,8 +62,40 @@ export default function AccountSettings() {
 
   const handlePasswordSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setPasswordSuccess(true);
-    setTimeout(() => setPasswordSuccess(false), 3000);
+    setPasswordError('');
+    
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${session?.user?.id}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+          confirmPassword: passwordForm.confirmPassword,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setPasswordSuccess(true);
+        // Reset form
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        setPasswordStrength(0);
+        setTimeout(() => setPasswordSuccess(false), 3000);
+      } else {
+        setPasswordError(data.message || 'Failed to update password');
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      setPasswordError('An error occurred while updating your password');
+    }
   };
 
   const handleNewPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -314,6 +347,13 @@ export default function AccountSettings() {
                 </div>
               )}
             </div>
+            
+            {passwordError && (
+              <div className="flex items-center gap-1 text-red-400 text-sm mt-2">
+                <AlertCircle className="w-4 h-4" />
+                <span>{passwordError}</span>
+              </div>
+            )}
             
             <div className="flex justify-end pt-2">
               <button

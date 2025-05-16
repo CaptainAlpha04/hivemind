@@ -1089,10 +1089,25 @@ router.put('/:userId/profilePicture', upload.single('profilePicture'), async (re
 // PUT /api/users/:userId/password - Update a user's password
 router.put('/:userId/password', async (req, res) => {
     const { userId } = req.params;
-    const { newPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    // Validate required fields
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        return res.status(400).json({ message: 'All password fields are required' });
+    }
+
+    // Validate password confirmation
+    if (newPassword !== confirmPassword) {
+        return res.status(400).json({ message: 'New passwords do not match' });
+    }
+
+    // Validate minimum password length
+    if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters long' });
     }
 
     try {
@@ -1102,10 +1117,15 @@ router.put('/:userId/password', async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
         
-        // Update user's password
-        if (newPassword) {
-            user.password = await hash(newPassword, 12);
+        // Verify the current password is correct
+        const isCurrentPasswordValid = await compare(currentPassword, user.password);
+        if (!isCurrentPasswordValid) {
+            return res.status(401).json({ message: 'Current password is incorrect' });
         }
+        
+        // Update user's password with new hashed password
+        const hashedNewPassword = await hash(newPassword, 12);
+        user.password = hashedNewPassword;
         
         await user.save();
         
