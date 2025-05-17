@@ -32,7 +32,8 @@ const ProfileDropdown = () => {
   const [profileImageUrl, setProfileImageUrl] = useState<string>('/images/user.png');
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  
+  const [ringColor, setRingColor] = useState<string | undefined>('cyan-500');
+
   useEffect(() => {
     if (isSigningOut && status === "unauthenticated") {
       router.push("/auth/login");
@@ -44,7 +45,12 @@ const ProfileDropdown = () => {
       const data = await getUserDetails();
       if (data) {
         setUserData(data);
-        
+
+        if (data.bannerColor) {
+        const ringColor = data.bannerColor.replace("bg-", "");
+        console.log("Ring color:", ringColor);
+        setRingColor(ringColor);
+      }
         // Handle the profile picture if it exists
         if (data.hasProfilePicture && data.profilePicture) {
           try {
@@ -74,6 +80,8 @@ const ProfileDropdown = () => {
         URL.revokeObjectURL(profileImageUrl);
       }
     };
+
+
   }, []);
 
   const convertBase64ToBlob = (base64String: string): Blob => {
@@ -135,7 +143,12 @@ const ProfileDropdown = () => {
     <div className="dropdown dropdown-end ml-2 bg-base-100 z-index-50 text-base-content">
       {/* The button that opens the dropdown - using details/summary for better accessibility */}
       <label tabIndex={0} className="btn btn-ghost btn-circle avatar online">
-        <div className="w-10 h-10 rounded-full ring ring-primary ring-offset-base-200 ring-offset-2">
+        <div className={`w-10 h-10 rounded-full ring ring-offset-base-200 ring-offset-2 ${
+    ringColor === 'orange-500' ? 'ring-orange-500' :
+    ringColor === 'pink-500' ? 'ring-pink-500' :
+    ringColor === 'green-500' ? 'ring-emerald-500' :
+    ringColor === 'violet-500' ? 'ring-purple-500' :
+    'ring-cyan-500'}`}>
           <img src={profileImageUrl || '/images/user.png'} alt="profile" />
         </div>
       </label>
@@ -146,7 +159,7 @@ const ProfileDropdown = () => {
           <div className={`${userData?.bannerColor} badge text-xs`}>{userData?.username}</div>
         </div>
         <li>
-          <Link href="/settings/profile" className="flex items-center hover:text-primary hover:hover:bg-gray-700/20">
+          <Link href="/user" className="flex items-center hover:text-primary hover:hover:bg-gray-700/20">
             <User size={16} />
             Profile
           </Link>

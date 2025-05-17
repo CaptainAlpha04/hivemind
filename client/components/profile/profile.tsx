@@ -70,6 +70,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
   const [activeFilter, setActiveFilter] = useState("recent");
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [followLoading, setFollowLoading] = useState(false);
 
   // States for post interaction
   const [likeLoading, setLikeLoading] = useState<Record<string, boolean>>({});
@@ -148,6 +149,13 @@ export default function UserProfile({ userId }: UserProfileProps) {
     }
   }, [userId, session, status]);
 
+  // When activeFilter changes, re-fetch posts with the new filter
+  useEffect(() => {
+    if (userId && !loading) {
+      fetchUserPosts(userId);
+    }
+  }, [activeFilter, userId]);
+
   // Add this new function to fetch user posts with filters
   const fetchUserPosts = async (userId: string) => {
     try {
@@ -170,8 +178,8 @@ export default function UserProfile({ userId }: UserProfileProps) {
         case 'top':
           // Sort by engagement (likes + comments)
           filteredPosts.sort((a, b) => {
-            const aEngagement = a.likes.length + a.comments.length;
-            const bEngagement = b.likes.length + b.comments.length;
+            const aEngagement = a.likes.length + (a.comments?.length || 0);
+            const bEngagement = b.likes.length + (b.comments?.length || 0);
             return bEngagement - aEngagement;
           });
           break;
@@ -228,6 +236,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
       return;
     }
     
+    setFollowLoading(true);
     try {
       const endpoint = isFollowing 
         ? `${process.env.NEXT_PUBLIC_API_URL}/api/users/unfollow/${userId}`
@@ -247,10 +256,8 @@ export default function UserProfile({ userId }: UserProfileProps) {
         throw new Error(`Failed to ${isFollowing ? 'unfollow' : 'follow'} user`);
       }
       
-      // Toggle follow state
       setIsFollowing(prev => !prev);
       
-      // Update UI counts
       if (userData) {
         setUserData({
           ...userData,
@@ -259,13 +266,10 @@ export default function UserProfile({ userId }: UserProfileProps) {
             : userData.followersCount + 1
         });
       }
-      
-      // Show a toast or notification (if you have that component)
-      // toast.success(`Successfully ${isFollowing ? 'unfollowed' : 'followed'} user`);
-      
     } catch (error) {
       console.error(`Error ${isFollowing ? 'unfollowing' : 'following'} user:`, error);
-      // toast.error(`Failed to ${isFollowing ? 'unfollow' : 'follow'} user`);
+    } finally {
+      setFollowLoading(false);
     }
   };
   
@@ -480,6 +484,26 @@ export default function UserProfile({ userId }: UserProfileProps) {
     }));
   };
 
+  // Check if user is already being followed when profile loads
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      if (!session?.user?.id || isCurrentUser || !userId) return;
+      
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${session.user.id}`);
+        if (response.ok) {
+          const currentUser = await response.json();
+          // Check if the current user is following the profile user
+          setIsFollowing(currentUser.following && currentUser.following.includes(userId));
+        }
+      } catch (error) {
+        console.error("Error checking follow status:", error);
+      }
+    };
+    
+    checkFollowStatus();
+  }, [session?.user?.id, userId, isCurrentUser]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-base-300">
@@ -523,30 +547,35 @@ export default function UserProfile({ userId }: UserProfileProps) {
             <div className="absolute right-8 bottom-4 flex items-center gap-2">
               {isCurrentUser ? (
                 <>
-                  <button 
-                    onClick={() => router.push('/settings/account')}
-                    className="bg-transparent border border-white text-base-content hover:bg-white/10 py-1 px-6 rounded-full font-medium flex items-center gap-2"
+                  <Link href="settings/profile"
+                    className="bg-primary text-white hover:bg-primary-focus py-1 px-6 rounded-full font-medium"
                   >
-                    <Settings size={14} />
-                    Settings
-                  </button>
-                  <Link href="/settings/profile">
-                    <button className="bg-primary text-white hover:bg-primary-focus py-1 px-6 rounded-full font-medium flex items-center gap-2">
-                      <Edit size={14} />
-                      Edit Profile
-                    </button>
+                    <Edit size={16} className="mr-2 inline" />
+                    Edit Profile
                   </Link>
+                  <button className="bg-transparent text-base-content border border-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10"
+                  onClick={() => router.push('/settings/account')}>
+                    <Settings size={16} />
+                  </button>
                 </>
               ) : (
                 <>
                   <button 
                     onClick={handleFollowToggle}
+                    disabled={followLoading}
                     className={`${isFollowing 
                       ? 'bg-transparent border border-white text-base-content hover:bg-white/10' 
                       : 'bg-primary text-white hover:bg-primary-focus'
-                    } py-1 px-6 rounded-full font-medium`}
+                    } py-1 px-6 rounded-full font-medium relative`}
                   >
-                    {isFollowing ? 'Following' : 'Follow'}
+                    {followLoading ? (
+                      <span className="flex items-center justify-center">
+                        <span className="animate-spin h-4 w-4 border-2 border-t-transparent rounded-full mr-2"></span>
+                        {isFollowing ? 'Unfollowing...' : 'Following...'}
+                      </span>
+                    ) : (
+                      isFollowing ? 'Following' : 'Follow'
+                    )}
                   </button>
                   <button className="bg-transparent text-base-content border border-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10">
                     <Bell size={16} />
@@ -567,21 +596,30 @@ export default function UserProfile({ userId }: UserProfileProps) {
               <div className="bg-base-100 rounded-2xl mb-4 p-2 flex items-center">
                 <button 
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'recent' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
-                  onClick={() => setActiveFilter('recent')}
+                  onClick={() => {
+                    console.log("Setting filter to recent");
+                    setActiveFilter('recent');
+                  }}
                 >
                   <Clock size={14} />
                   <span>Recent</span>
                 </button>
                 <button 
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'popular' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
-                  onClick={() => setActiveFilter('popular')}
+                  onClick={() => {
+                    console.log("Setting filter to popular");
+                    setActiveFilter('popular');
+                  }}
                 >
                   <Flame size={14} />
                   <span>Popular</span>
                 </button>
                 <button 
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'top' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
-                  onClick={() => setActiveFilter('top')}
+                  onClick={() => {
+                    console.log("Setting filter to top");
+                    setActiveFilter('top');
+                  }}
                 >
                   <TrendingUp size={14} />
                   <span>Top</span>
