@@ -107,7 +107,7 @@ const PostCard: React.FC<PostCardProps> = ({
     <div className="card bg-base-300 rounded-2xl p-6">
       {/* Post Header */}
       <div className="mb-3">
-        <Link href={`/profile/${post.userId}`}>
+        <Link href={`/user/${post.userId}`}>
           <span className="text-base-content font-bold text-lg hover:underline cursor-pointer">
             u/{post.username}
           </span>

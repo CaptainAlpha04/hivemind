@@ -188,6 +188,28 @@ router.post('/:postId/like', async (req, res) => {
     }
 });
 
+// Get Posts for a specific user
+router.get('/user/:userId', async (req, res) => {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    try {
+        const posts = await Post.find({ userId: userId })
+            .sort({ createdAt: -1 })
+            .lean(); // Convert to plain JavaScript objects
+        const filteredPosts = posts.map(post => ({
+            ...post,
+            hasImage: !!(post.image && post.image.contentType) // Check if image exists
+        }));
+        return res.status(200).json(filteredPosts);
+    } catch (error) {
+        console.error('Failed to fetch user posts:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
 // Apply similar changes to the comment endpoint
 router.post('/:postId/comment', async (req, res) => {
     // Extract userId from either auth session or from request body/header
