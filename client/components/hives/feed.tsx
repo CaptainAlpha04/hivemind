@@ -1,252 +1,453 @@
 "use client";
-import { useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Header from '@/components/ui/Header';
-import Sidebar from '@/components/ui/Sidebar';
-import { MessageSquare, ArrowBigUp, Share2, Clock, Flame, TrendingUp, MoreHorizontal, Bell, Bookmark, Shield, Award, User } from 'lucide-react';
 
-// Types for community data
+import React, { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Header from "@/components/ui/Header";
+import Sidebar from "@/components/ui/Sidebar";
+import PostCard from "@/components/main/Post";
+import Link from "next/link";
+import { Users, PlusCircle, Bell, Settings, Info, Shield, MessageSquare, Clock, Flame, TrendingUp } from "lucide-react";
+
+// Type definitions
 interface Community {
   _id: string;
   name: string;
   description: string;
+  isPrivate: boolean;
   creator: {
     _id: string;
     username: string;
-    profilePicture?: string;
   };
-  moderators: {
-    _id: string;
-    username: string;
-    profilePicture?: string;
-  }[];
-  isPrivate: boolean;
+  moderators?: string[];
+  members?: string[];
+  isMember?: boolean;
+  isModerator?: boolean;
+  isCreator?: boolean;
+  profilePicture?: {
+    data?: string;
+    contentType?: string;
+  };
+  bannerImage?: {
+    data?: string;
+    contentType?: string;
+  };
   createdAt: string;
   rules?: {
     title: string;
     description: string;
   }[];
-  profilePicture?: {
-    data?: any;
-    contentType?: string;
-  };
-  bannerImage?: {
-    data?: any;
-    contentType?: string;
-  };
-  members?: any[];
 }
 
-// Types for community post
+interface Comment {
+  _id: string;
+  userId: string;
+  username: string;
+  text: string;
+  likes: string[];
+  createdAt: string;
+  replies?: Comment[];
+  parentId?: string;
+}
+
 interface Post {
   _id: string;
-  title: string;
+  userId: string;
+  username: string;
+  heading: string;
   content: string;
-  userId: {
-    _id: string;
-    username: string;
-    profilePicture?: string;
-  };
+  images: Array<{ data: string; contentType: string }>;
+  visibility: 'public' | 'followers_only' | 'private';
+  likes: string[];
+  comments: Comment[];
   createdAt: string;
-  upvotes: number;
-  downvotes: number;
-  commentCount: number;
-  community?: {
-    _id: string;
-    name: string;
-  };
-  tags?: string[];
-  hasImages?: boolean;
-  images?: {
-    _id: string;
-    contentType: string;
-  }[];
+  updatedAt: string;
 }
-
-// Default achievements for communities
-const defaultAchievements = [
-  { name: "Active Community", icon: <Flame size={16} /> },
-  { name: "Growing Fast", icon: <TrendingUp size={16} /> }
-];
-
-interface FeedProps {
+interface HiveFeedProps {
   communityId: string;
   subPath?: string | null;
 }
-
-export default function Feed({ communityId, subPath }: FeedProps) {
-  const { data: session, status } = useSession();
+const HiveFeed: React.FC<HiveFeedProps> = ({communityId, subPath}) => {
+  const { data: session } = useSession();
   const router = useRouter();
-  const [activeFilter, setActiveFilter] = useState("hot");
-  const [isExpanded, setIsExpanded] = useState<Record<string, boolean>>({});
-  
-  // State for community data
-  const [community, setCommunity] = useState<Community | null>(null);
+  const hiveId = communityId || subPath;
+
+  // State variables
+  const [hive, setHive] = useState<Community | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("recent");
   const [error, setError] = useState<string | null>(null);
-  const [isMember, setIsMember] = useState(false);
+  
+  // State for image URLs
+  const [profileImageUrl, setProfileImageUrl] = useState<string>('/images/user.png');
+  const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(null);
 
-  // Fetch community data
-    // ...existing code...
-  
-  // Fetch community data
-    // Fix the variable name inconsistencies - communityName -> communityId and community_id -> communityId
-  
-  // Update the useEffect to use the correct communityId variable
+  // States for post interaction
+  const [likeLoading, setLikeLoading] = useState<Record<string, boolean>>({});
+  const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
+  const [animatingLikes, setAnimatingLikes] = useState<Record<string, boolean>>({});
+  const [commentLikeLoading, setCommentLikeLoading] = useState<Record<string, boolean>>({});
+  const [animatingCommentLikes, setAnimatingCommentLikes] = useState<Record<string, boolean>>({});
+  const [expandedCommentSections, setExpandedCommentSections] = useState<Record<string, boolean>>({});
+
+  // Convert base64 data to a URL
+  const convertBase64ToBlob = (base64String: string, contentType: string): string => {
+    try {
+      // If the base64 string already has a data URL prefix, use it directly
+      if (base64String.includes('base64,')) {
+        return base64String;
+      }
+      // Otherwise, add the appropriate data URL prefix
+      return `data:${contentType};base64,${base64String}`;
+    } catch (error) {
+      console.error("Error converting base64 to data URL:", error);
+      return '/images/user.png'; // Fallback image
+    }
+  };
+
+  // Fetch hive data and posts
   useEffect(() => {
-    const fetchCommunityData = async () => {
+    const fetchHiveDetails = async () => {
+      if (!hiveId) return;
+
+      setLoading(true);
+      setError(null);
+      
       try {
-        setLoading(true);
-        // Now fetch the detailed community data using the ID
-        const userId = session?.user?.id;
-        const detailsResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/communities/${communityId}${userId ? `?userId=${userId}` : ''}`
-        );
-        
-        if (!detailsResponse.ok) {
-          throw new Error('Failed to fetch community details');
+        // Fetch hive details
+        const hiveUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/communities/${hiveId}`;
+        const hiveQuery = session?.user?.id ? `${hiveUrl}?userId=${session.user.id}` : hiveUrl;
+        const hiveResponse = await fetch(hiveQuery);
+
+        if (!hiveResponse.ok) {
+          if (hiveResponse.status === 403) {
+            setError("This hive is private. You must be a member to view it.");
+          } else {
+            setError("Failed to fetch hive details");
+          }
+          setLoading(false);
+          return;
         }
-        
-        const communityData = await detailsResponse.json();
-        setCommunity(communityData);
-        
-        // Check if user is a member
-        if (userId && communityData.members) {
-          setIsMember(communityData.members.some((id: string) => id === userId));
+
+        const hiveData = await hiveResponse.json();
+        setHive(hiveData);
+
+        // Process profile picture if it exists
+        if (hiveData.profilePicture && hiveData.profilePicture.data) {
+          const imageUrl = convertBase64ToBlob(
+            hiveData.profilePicture.data,
+            hiveData.profilePicture.contentType || 'image/jpeg'
+          );
+          setProfileImageUrl(imageUrl);
         }
-  
-        // Fetch community posts
-        const postsResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/communities/${communityData._id}/posts${userId ? `?userId=${userId}` : ''}`
-        );
-        
-        if (!postsResponse.ok) {
-          throw new Error('Failed to fetch community posts');
+
+        // Process banner image if it exists
+        if (hiveData.bannerImage && hiveData.bannerImage.data) {
+          const bannerUrl = convertBase64ToBlob(
+            hiveData.bannerImage.data,
+            hiveData.bannerImage.contentType || 'image/jpeg'
+          );
+          setBannerImageUrl(bannerUrl);
         }
-        
-        const postsData = await postsResponse.json();
-        setPosts(postsData);
-        
-        setLoading(false);
-      } catch (err) {
-        console.error("Error fetching community data:", err);
-        setError('Error loading community data. Please try again later.');
+
+        // Fetch hive posts
+        await fetchHivePosts();
+      } catch (error) {
+        console.error("Error fetching hive details:", error);
+        setError("An unexpected error occurred");
+      } finally {
         setLoading(false);
       }
     };
-  
-    if (communityId) {
-      fetchCommunityData();
+
+    fetchHiveDetails();
+  }, [hiveId, session?.user?.id]);
+
+  // Fetch posts when filter changes
+  useEffect(() => {
+    if (!loading && hive) {
+      fetchHivePosts();
     }
-  }, [communityId]);
-  
-  // ...rest of the component...
-  // Handle joining community
-  const handleJoinCommunity = async () => {
+  }, [activeFilter]);
+
+  const fetchHivePosts = async () => {
+    if (!hiveId) return;
+
+    try {
+      // Fetch posts for the hive
+      const postsUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/communities/${hiveId}/posts`;
+      const postsQuery = session?.user?.id ? `${postsUrl}?userId=${session.user.id}` : postsUrl;
+      const postsResponse = await fetch(postsQuery);
+
+      if (!postsResponse.ok) {
+        console.error("Failed to fetch posts");
+        return;
+      }
+
+      let postsData = await postsResponse.json();
+      
+      // Apply filter
+      switch (activeFilter) {
+        case 'popular':
+          // Sort by most likes
+          postsData.sort((a: Post, b: Post) => b.likes.length - a.likes.length);
+          break;
+        case 'top':
+          // Sort by engagement (likes + comments)
+          postsData.sort((a: Post, b: Post) => {
+            const aEngagement = a.likes.length + (a.comments?.length || 0);
+            const bEngagement = b.likes.length + (b.comments?.length || 0);
+            return bEngagement - aEngagement;
+          });
+          break;
+        case 'recent':
+        default:
+          // Sort by most recent (default)
+          postsData.sort((a: Post, b: Post) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          break;
+      }
+
+      setPosts(postsData);
+    } catch (error) {
+      console.error("Error fetching hive posts:", error);
+    }
+  };
+
+  const toggleComments = (postId: string) => {
+    setExpandedCommentSections(prev => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }));
+  };
+
+  const handleJoinHive = async () => {
+    if (!session?.user?.id) {
+      router.push('/auth/login');
+      return;
+    }
+
+    setJoinLoading(true);
+    try {
+      const endpoint = hive?.isMember 
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/communities/${hiveId}/leave`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/communities/${hiveId}/join`;
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          userId: session.user.id 
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to ${hive?.isMember ? 'leave' : 'join'} hive`);
+      }
+      
+      // Update hive member status in state
+      if (hive) {
+        setHive({
+          ...hive,
+          isMember: !hive.isMember
+        });
+      }
+      
+    } catch (error) {
+      console.error(`Error ${hive?.isMember ? 'leaving' : 'joining'} hive:`, error);
+    } finally {
+      setJoinLoading(false);
+    }
+  };
+
+  // Post interaction handlers
+  const handleLikePost = async (postId: string) => {
+    if (!session?.user?.id) {
+      router.push('/auth/login');
+      return;
+    }
+
+    setLikeLoading(prev => ({ ...prev, [postId]: true }));
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: session.user.id }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to like post');
+      
+      // Update post in state
+      setPosts(prev => 
+        prev.map(post => {
+          if (post._id === postId) {
+            const userLiked = post.likes.includes(session.user.id as string);
+            return {
+              ...post,
+              likes: userLiked
+                ? post.likes.filter(id => id !== session.user.id)
+                : [...post.likes, session.user.id as string]
+            };
+          }
+          return post;
+        })
+      );
+      
+      // Show animation
+      setAnimatingLikes(prev => ({ ...prev, [postId]: true }));
+      setTimeout(() => {
+        setAnimatingLikes(prev => ({ ...prev, [postId]: false }));
+      }, 1000);
+    } catch (error) {
+      console.error('Error liking post:', error);
+    } finally {
+      setLikeLoading(prev => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  const handleAddComment = async (postId: string, text: string) => {
+    if (!session?.user?.id) {
+      router.push('/auth/login');
+      return;
+    }
+
+    setCommentLoading(prev => ({ ...prev, [postId]: true }));
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: session.user.id,
+          username: session.user.name || 'Anonymous',
+          text 
+        }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to add comment');
+      
+      const newComment = await response.json();
+      
+      // Update post in state
+      setPosts(prev => 
+        prev.map(post => {
+          if (post._id === postId) {
+            return {
+              ...post,
+              comments: [...post.comments, newComment]
+            };
+          }
+          return post;
+        })
+      );
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    } finally {
+      setCommentLoading(prev => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  const handleLikeComment = async (postId: string, commentId: string) => {
+    if (!session?.user?.id) {
+      router.push('/auth/login');
+      return;
+    }
+
+    setCommentLikeLoading(prev => ({ ...prev, [commentId]: true }));
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/comments/${commentId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: session.user.id }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to like comment');
+      
+      // Update post in state
+      setPosts(prev => 
+        prev.map(post => {
+          if (post._id === postId) {
+            return {
+              ...post,
+              comments: post.comments.map(comment => {
+                if (comment._id === commentId) {
+                  const userLiked = comment.likes.includes(session.user.id as string);
+                  return {
+                    ...comment,
+                    likes: userLiked
+                      ? comment.likes.filter(id => id !== session.user.id)
+                      : [...comment.likes, session.user.id as string]
+                  };
+                }
+                return comment;
+              })
+            };
+          }
+          return post;
+        })
+      );
+      
+      // Show animation
+      setAnimatingCommentLikes(prev => ({ ...prev, [commentId]: true }));
+      setTimeout(() => {
+        setAnimatingCommentLikes(prev => ({ ...prev, [commentId]: false }));
+      }, 1000);
+    } catch (error) {
+      console.error('Error liking comment:', error);
+    } finally {
+      setCommentLikeLoading(prev => ({ ...prev, [commentId]: false }));
+    }
+  };
+
+  const handleReplyToComment = async (postId: string, commentId: string, text: string) => {
     if (!session?.user?.id) {
       router.push('/auth/login');
       return;
     }
 
     try {
-      if (!community?._id) return;
-      
-      const response = await fetch(`/api/communities/${community._id}/join`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/comments/${commentId}/reply`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: session.user.id }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: session.user.id,
+          username: session.user.name || 'Anonymous',
+          text 
+        }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to join community');
-      }
-
-      // Update UI state
-      setIsMember(true);
-    } catch (err) {
-      console.error("Error joining community:", err);
-    }
-  };
-
-  // Handle leaving community
-  const handleLeaveCommunity = async () => {
-    if (!session?.user?.id) {
-      return;
-    }
-
-    try {
-      if (!community?._id) return;
       
-      const response = await fetch(`/api/communities/${community._id}/leave`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: session.user.id }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to leave community');
-      }
-
-      // Update UI state
-      setIsMember(false);
-    } catch (err) {
-      console.error("Error leaving community:", err);
+      if (!response.ok) throw new Error('Failed to add reply');
+      
+      const reply = await response.json();
+      
+      // Update post in state
+      setPosts(prev => 
+        prev.map(post => {
+          if (post._id === postId) {
+            return {
+              ...post,
+              comments: post.comments.map(comment => {
+                if (comment._id === commentId) {
+                  return {
+                    ...comment,
+                    replies: [...(comment.replies || []), reply]
+                  };
+                }
+                return comment;
+              })
+            };
+          }
+          return post;
+        })
+      );
+    } catch (error) {
+      console.error('Error adding reply:', error);
     }
   };
 
-  // Toggle content expansion for posts
-  const toggleExpand = (postId: string) => {
-    setIsExpanded(prev => ({
-      ...prev,
-      [postId]: !prev[postId]
-    }));
-  };
-
-  // Protect this route - redirect to login if not authenticated
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/login");
-    }
-  }, [status, router]);
-
-  // Show loading state while checking authentication or fetching data
-  if (status === "loading" || loading) {
-    return (
-      <div className="min-h-screen flex flex-col bg-base-300">
-        <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin h-8 w-8 border-4 border-teal-400 rounded-full border-t-transparent"></div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <div className="min-h-screen flex flex-col bg-base-300">
-        <Header />
-        <div className="flex-1 flex items-center justify-center flex-col p-4">
-          <h2 className="text-xl text-red-400 mb-4">Error</h2>
-          <p className="text-base-content">{error}</p>
-          <button 
-            onClick={() => router.push('/hives')} 
-            className="btn btn-active btn-primary mt-4"
-          >
-            Back to Hives
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Format the date string for UI display
+  // Format date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -256,89 +457,134 @@ export default function Feed({ communityId, subPath }: FeedProps) {
     });
   };
 
-  // Format time ago for posts
-  const getTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffSec = Math.round(diffMs / 1000);
-    const diffMin = Math.round(diffSec / 60);
-    const diffHr = Math.round(diffMin / 60);
-    const diffDays = Math.round(diffHr / 24);
-
-    if (diffSec < 60) return `${diffSec} sec. ago`;
-    if (diffMin < 60) return `${diffMin} min. ago`;
-    if (diffHr < 24) return `${diffHr} hr. ago`;
-    if (diffDays < 30) return `${diffDays} days ago`;
-    return formatDate(dateString);
+  // Format numbers (e.g., 1K, 2.5M)
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
   };
 
-  // Main content - only shown to authenticated users
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-base-300">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary rounded-full border-t-transparent"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col bg-base-300">
+        <Header />
+        <div className="flex mt-[70px]">
+          <Sidebar />
+          <main className="flex-1 ml-[280px] pb-8 flex items-center justify-center">
+            <div className="bg-base-100 rounded-2xl p-8 max-w-md text-center">
+              <Shield size={48} className="mx-auto mb-4 text-error" />
+              <h2 className="text-xl font-bold mb-2">Access Restricted</h2>
+              <p className="text-base-content/70 mb-4">{error}</p>
+              <Link href="/hives" className="btn btn-primary">
+                Explore Other Hives
+              </Link>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hive) {
+    return (
+      <div className="min-h-screen flex flex-col bg-base-300">
+        <Header />
+        <div className="flex mt-[70px]">
+          <Sidebar />
+          <main className="flex-1 ml-[280px] pb-8 flex items-center justify-center">
+            <div className="bg-base-100 rounded-2xl p-8 max-w-md text-center">
+              <Info size={48} className="mx-auto mb-4 text-error" />
+              <h2 className="text-xl font-bold mb-2">Hive Not Found</h2>
+              <p className="text-base-content/70 mb-4">The hive you're looking for doesn't exist or has been removed.</p>
+              <Link href="/hives" className="btn btn-primary">
+                Explore Hives
+              </Link>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex flex-col bg-base-300">
+    <div className="min-h-screen flex flex-col bg-base-200">
       <Header />
       <div className="flex mt-[70px]">
         <Sidebar />
-        <main className="flex-1 ml-[280px]">
-          {/* Community Banner */}
+        <main className="flex-1 ml-[280px] pb-8">
+          {/* Hive Banner */}
           <div className="relative">
-            <div className="h-48 w-full bg-gradient-to-r from-blue-900 to-blue-800 relative overflow-hidden">
-              {community?.bannerImage?.contentType ? (
+            <div className="h-48 w-full bg-slate-700 relative overflow-hidden">
+              {/* If banner image exists, show it */}
+              {bannerImageUrl ? (
                 <img 
-                  src={`/api/communities/${community._id}/banner`} 
-                  alt="" 
-                  className="w-full h-full object-cover opacity-80" 
+                  src={bannerImageUrl}
+                  alt={`${hive.name} banner`}
+                  className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-gradient-to-r from-blue-900 to-indigo-900"></div>
+                <div className="w-full h-full bg-gradient-to-r from-primary to-secondary opacity-50"></div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent opacity-60"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-base-300 to-transparent opacity-60"></div>
             </div>
 
-            {/* Community info overlay */}
+            {/* Hive info overlay */}
             <div className="absolute -bottom-16 left-8 flex items-end">
-              <div className="w-24 h-24 rounded-full border-4 border-slate-950 bg-white overflow-hidden">
-                {community?.profilePicture?.contentType ? (
-                  <img 
-                    src={`/api/communities/${community._id}/profile-picture`} 
-                    alt={community.name} 
-                    className="w-full h-full object-cover" 
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-base-content text-2xl font-bold">
-                    {community?.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+              <div className="w-24 h-24 rounded-full border-4 border-base-300 bg-white overflow-hidden">
+                <img 
+                  src={profileImageUrl}
+                  alt={hive.name} 
+                  className="w-full h-full object-cover" 
+                />
               </div>
               <div className="ml-4 mb-4">
-                <h1 className="text-2xl font-bold text-base-content">{community?.name}</h1>
-                <p className="text-gray-400 text-sm">r/{community?.name.toLowerCase()}</p>
+                <h1 className="text-2xl font-bold text-base-content">h/{hive.name}</h1>
+                <p className="text-gray-400 text-sm">{hive.isPrivate ? 'Private Hive' : 'Public Hive'}</p>
               </div>
             </div>
 
             {/* Action buttons */}
             <div className="absolute right-8 bottom-4 flex items-center gap-2">
-              {!isMember ? (
-                <button 
-                  onClick={handleJoinCommunity}
-                  className="bg-white text-slate-950 hover:bg-gray-200 py-1 px-6 rounded-full font-medium"
-                >
-                  Join
-                </button>
+              {hive.isCreator ? (
+                <Link href={`/hives/${hiveId}/edit`} className="bg-primary text-white hover:bg-primary-focus py-1 px-6 rounded-full font-medium">
+                  <Settings size={16} className="mr-2 inline" />
+                  Manage Hive
+                </Link>
               ) : (
-                <button 
-                  onClick={handleLeaveCommunity}
-                  className="bg-transparent border border-white text-base-content hover:bg-white/10 py-1 px-6 rounded-full font-medium"
+                <button
+                  onClick={handleJoinHive}
+                  disabled={joinLoading}
+                  className={`${hive.isMember ? 'bg-transparent border border-white text-base-content hover:bg-white/10' : 'bg-primary text-white hover:bg-primary-focus'} py-1 px-6 rounded-full font-medium`}
                 >
-                  Joined
+                  {joinLoading ? (
+                    <span className="flex items-center justify-center">
+                      <span className="animate-spin h-4 w-4 border-2 border-t-transparent rounded-full mr-2"></span>
+                      {hive.isMember ? 'Leaving...' : 'Joining...'}
+                    </span>
+                  ) : (
+                    hive.isMember ? 'Leave Hive' : 'Join Hive'
+                  )}
                 </button>
               )}
-              <button className="bg-transparent text-base-content border border-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10">
-                <Bell size={16} />
-              </button>
-              <button className="bg-transparent text-base-content w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10">
-                <MoreHorizontal size={16} />
-              </button>
+              {!hive.isCreator && (
+                <button className="bg-transparent text-base-content border border-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10">
+                  <Bell size={16} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -346,231 +592,150 @@ export default function Feed({ communityId, subPath }: FeedProps) {
           <div className="px-8 mt-20 flex gap-6">
             {/* Posts Feed */}
             <div className="flex-[2] max-w-[calc(100%-372px)]">
-              {/* Create Post Button (Mobile) */}
-              <div className="md:hidden mb-4">
-                <button className="w-full bg-blue-500 hover:bg-blue-600 text-base-content font-medium py-2 rounded-full text-sm">
-                  Create Post
-                </button>
-              </div>
-
-              {/* Filters */}
-              <div className="bg-base-300 rounded-2xl mb-4 p-2 flex items-center">
-                <button 
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'hot' ? 'bg-slate-800 text-base-content' : 'text-gray-300 hover:bg-slate-800/50'}`}
-                  onClick={() => setActiveFilter('hot')}
-                >
-                  <Flame size={14} />
-                  <span>Hot</span>
-                </button>
-                <button 
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'new' ? 'bg-slate-800 text-base-content' : 'text-gray-300 hover:bg-slate-800/50'}`}
-                  onClick={() => setActiveFilter('new')}
-                >
-                  <Clock size={14} />
-                  <span>New</span>
-                </button>
-                <button 
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'top' ? 'bg-slate-800 text-base-content' : 'text-gray-300 hover:bg-slate-800/50'}`}
-                  onClick={() => setActiveFilter('top')}
-                >
-                  <TrendingUp size={14} />
-                  <span>Top</span>
-                </button>
-              </div>
-
-              {/* Create Post Box */}
-              <div className="bg-base-300 rounded-2xl p-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-                    <User size={16} className="text-gray-400" />
-                  </div>
-                  <input 
-                    type="text" 
-                    placeholder="Create Post"
-                    className="flex-1 bg-[#1a2235] text-gray-300 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
+              {/* Create Post / Filters Bar */}
+              <div className="bg-base-100 rounded-2xl mb-4 p-2 flex items-center justify-between">
+                <div className="flex">
+                  <button 
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'recent' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
+                    onClick={() => setActiveFilter('recent')}
+                  >
+                    <Clock size={14} />
+                    <span>Recent</span>
+                  </button>
+                  <button 
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'popular' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
+                    onClick={() => setActiveFilter('popular')}
+                  >
+                    <Flame size={14} />
+                    <span>Popular</span>
+                  </button>
+                  <button 
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'top' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
+                    onClick={() => setActiveFilter('top')}
+                  >
+                    <TrendingUp size={14} />
+                    <span>Top</span>
+                  </button>
                 </div>
+                
+                {hive.isMember && (
+                  <Link href="/posts/create" className="btn btn-sm btn-primary">
+                    <PlusCircle size={14} className="mr-1" />
+                    Create Post
+                  </Link>
+                )}
               </div>
 
               {/* Posts */}
               {posts.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {posts.map((post) => (
-                    <div key={post._id} className="bg-base-300 rounded-2xl overflow-hidden">
-                      <div className="flex">
-                        {/* Voting */}
-                        <div className="w-10 bg-[#1a2235] flex flex-col items-center py-2 gap-1">
-                          <button className="text-gray-400 hover:text-orange-500 transition-colors">
-                            <ArrowBigUp size={18} />
-                          </button>
-                          <span className="text-xs font-medium text-base-content">{post.upvotes - (post.downvotes || 0)}</span>
-                          <button className="text-gray-400 hover:text-blue-500 transition-colors">
-                            <ArrowBigUp className="rotate-180" size={18} />
-                          </button>
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 p-3">
-                          <div className="flex items-center text-xs text-gray-400 mb-2">
-                            <span>Posted by {post.userId.username} {getTimeAgo(post.createdAt)}</span>
-                          </div>
-
-                          <h3 className="font-medium text-lg text-base-content mb-2">{post.title}</h3>
-
-                          {post.hasImages && (
-                            <div className="mb-3 bg-[#1a2235] rounded-xl overflow-hidden">
-                              <img 
-                                src={`/api/posts/${post._id}/images/${post.images?.[0]?._id}`} 
-                                alt={post.title} 
-                                className="w-full object-cover max-h-[400px]" 
-                              />
-                            </div>
-                          )}
-
-                          <div className={`text-sm text-gray-300 mb-3 ${isExpanded[post._id] ? '' : 'line-clamp-3'}`}>
-                            {post.content}
-                          </div>
-
-                          {post.content.length > 150 && (
-                            <button 
-                              onClick={() => toggleExpand(post._id)} 
-                              className="text-xs text-blue-400 hover:text-blue-300 mb-2"
-                            >
-                              {isExpanded[post._id] ? 'Show less' : 'Read more'}
-                            </button>
-                          )}
-
-                          {post.tags && post.tags.length > 0 && (
-                            <div className="flex items-center gap-2 mb-1">
-                              {post.tags.map((tag, index) => (
-                                <span key={index} className="bg-[#1a2235] text-gray-300 px-2 py-0.5 rounded-full text-xs">
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center gap-4 mt-2">
-                            <button className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-slate-700/30 py-1 px-2 rounded transition-colors">
-                              <MessageSquare size={16} />
-                              <span>{post.commentCount || 0} Comments</span>
-                            </button>
-                            <button className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-slate-700/30 py-1 px-2 rounded transition-colors">
-                              <Share2 size={16} />
-                              <span>Share</span>
-                            </button>
-                            <button className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-slate-700/30 py-1 px-2 rounded transition-colors">
-                              <Bookmark size={16} />
-                              <span>Save</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <PostCard 
+                      key={post._id}
+                      post={post}
+                      formatDate={formatDate}
+                      formatNumber={formatNumber}
+                      onLike={handleLikePost}
+                      onComment={handleAddComment}
+                      onLikeComment={handleLikeComment}
+                      onReplyToComment={handleReplyToComment}
+                      likeLoading={likeLoading}
+                      commentLoading={commentLoading}
+                      animatingLikes={animatingLikes}
+                      commentLikeLoading={commentLikeLoading}
+                      animatingCommentLikes={animatingCommentLikes}
+                      expandedCommentSections={expandedCommentSections}
+                      toggleComments={toggleComments}
+                    />
                   ))}
                 </div>
               ) : (
-                <div className="bg-base-300 rounded-2xl p-6 text-center">
-                  <p className="text-gray-300">No posts in this community yet.</p>
-                  <button className="mt-4 bg-blue-500 hover:bg-blue-600 text-base-content font-medium py-2 px-4 rounded-full text-sm">
-                    Create the First Post
-                  </button>
+                <div className="bg-base-100 rounded-2xl p-6 text-center">
+                  <MessageSquare size={48} className="mx-auto mb-4 text-primary opacity-50" />
+                  <p className="text-gray-400 mb-4">No posts in this hive yet.</p>
+                  {hive.isMember && (
+                    <Link href="/posts/create" className="btn btn-primary">
+                      <PlusCircle size={16} className="mr-2" />
+                      Create the First Post
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Community Details - Right Sidebar */}
+            {/* Hive Details - Right Sidebar */}
             <aside className="sticky top-[102px] self-start w-[340px] max-h-[calc(100vh-150px)] overflow-y-auto hidden md:block">
-              {/* About Community */}
-              <div className="bg-base-300 rounded-2xl overflow-hidden mb-4">
-                <div className="p-3 border-b border-slate-700">
-                  <h2 className="text-base-content font-medium text-base mb-2">About Community</h2>
-                  <p className="text-gray-400 text-sm mb-3">
-                    {community?.description}
-                  </p>
-
+              {/* About Hive */}
+              <div className="bg-base-100 rounded-2xl overflow-hidden mb-4">
+                <div className="p-4 border-b border-base-300">
+                  <h2 className="text-base-content font-medium text-base mb-2">About h/{hive.name}</h2>
+                  <p className="text-base-content/80 text-sm mb-3">{hive.description}</p>
+                  
                   {/* Stats */}
                   <div className="flex flex-col gap-2 py-2">
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
-                        <div className="text-base-content font-medium">{community?.members?.length || 0}</div>
+                        <div className="text-base-content font-medium">{hive.members?.length || 0}</div>
                         <div className="text-gray-400 text-xs">Members</div>
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center text-base-content font-medium">
-                          {Math.floor(Math.random() * 10) + 1} <span className="h-2 w-2 rounded-full bg-green-500 ml-1"></span>
-                        </div>
-                        <div className="text-gray-400 text-xs">Online</div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-base-content font-medium">Top {Math.floor(Math.random() * 10) + 1}%</div>
-                        <div className="text-gray-400 text-xs">Rank</div>
+                        <div className="text-base-content font-medium">{posts.length}</div>
+                        <div className="text-gray-400 text-xs">Posts</div>
                       </div>
                     </div>
                     <div className="flex items-center text-sm text-gray-400 mt-1">
-                      <span className="text-gray-400">Created {formatDate(community?.createdAt || '')}</span>
+                      <span className="text-gray-400">Created {hive.createdAt ? formatDate(hive.createdAt) : 'N/A'}</span>
                     </div>
                   </div>
 
-                  {/* Create Post button */}
-                  <div className="my-3">
-                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-base-content font-medium py-2 rounded-full text-sm">
-                      Create Post
-                    </button>
-                  </div>
+                  {/* Action button */}
+                  {!hive.isCreator && (
+                    <div className="mt-3">
+                      <button 
+                        onClick={handleJoinHive}
+                        disabled={joinLoading}
+                        className={`w-full ${hive.isMember ? 'bg-base-300 hover:bg-base-100 text-base-content' : 'bg-primary hover:bg-primary-focus text-white'} font-medium py-2 rounded-full text-sm`}
+                      >
+                        {joinLoading ? 
+                          <span className="flex items-center justify-center">
+                            <span className="animate-spin h-4 w-4 border-2 border-t-transparent rounded-full mr-2"></span>
+                            {hive.isMember ? 'Leaving...' : 'Joining...'}
+                          </span>
+                          : 
+                          hive.isMember ? 'Leave Hive' : 'Join Hive'
+                        }
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Community achievements */}
-                <div className="p-3 border-b border-slate-700">
-                  <h3 className="text-base-content font-medium text-sm mb-2">Community Achievements</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {defaultAchievements.map((achievement, index) => (
-                      <div key={index} className="flex items-center gap-1 bg-[#1a2235] rounded-full px-2 py-1 text-xs text-gray-300">
-                        <span className="text-blue-400">{achievement.icon}</span>
-                        {achievement.name}
-                      </div>
-                    ))}
-                  </div>
+                {/* Creator info */}
+                <div className="p-4 border-b border-base-300">
+                  <h3 className="text-base-content font-medium text-sm mb-2">Creator</h3>
+                  <Link href={`/user/${hive.creator?._id}`} className="flex items-center gap-2 hover:bg-base-300/50 p-1 rounded-lg">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                      <Users size={14} />
+                    </div>
+                    <span className="text-sm">{hive.creator?.username || 'Unknown'}</span>
+                  </Link>
                 </div>
-              </div>
-
-              {/* Rules */}
-              {community?.rules && community.rules.length > 0 ? (
-                <div className="bg-base-300 rounded-2xl overflow-hidden mb-4">
-                  <div className="p-3">
-                    <h3 className="text-base-content font-medium text-base mb-2">r/{community.name} Rules</h3>
-                    <ol className="space-y-2 text-gray-300">
-                      {community.rules.map((rule, index) => (
-                        <li key={index} className="border-b border-slate-700 pb-2">
-                          <div className="flex items-start gap-1">
-                            <span className="font-medium text-sm">{index + 1}. {rule.title}</span>
-                          </div>
-                          <p className="text-xs text-gray-400 mt-1">{rule.description}</p>
+                
+                {/* Rules section - if rules exist */}
+                {hive.rules && hive.rules.length > 0 && (
+                  <div className="p-4">
+                    <h3 className="text-base-content font-medium text-sm mb-2">Hive Rules</h3>
+                    <ul className="space-y-2">
+                      {hive.rules.map((rule, index) => (
+                        <li key={index} className="text-sm">
+                          <p className="font-medium">{index + 1}. {rule.title}</p>
+                          {rule.description && (
+                            <p className="text-gray-400 text-xs">{rule.description}</p>
+                          )}
                         </li>
                       ))}
-                    </ol>
+                    </ul>
                   </div>
-                </div>
-              ) : null}
-
-              {/* Moderators */}
-              <div className="bg-base-300 rounded-2xl overflow-hidden">
-                <div className="p-3">
-                  <h3 className="text-base-content font-medium text-base mb-2">Moderators</h3>
-                  <ul className="space-y-2 text-gray-300 text-sm">
-                    {community?.moderators && community.moderators.map((mod) => (
-                      <li key={mod._id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          <Shield size={14} className="text-blue-400" />
-                          <span className="text-blue-400 hover:underline cursor-pointer">u/{mod.username}</span>
-                        </div>
-                        {mod._id === community.creator._id && (
-                          <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Creator</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                )}
               </div>
             </aside>
           </div>
@@ -578,4 +743,6 @@ export default function Feed({ communityId, subPath }: FeedProps) {
       </div>
     </div>
   );
-}
+};
+
+export default HiveFeed;

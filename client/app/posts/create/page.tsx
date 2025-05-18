@@ -193,8 +193,30 @@ export default function CreatePostPage() {
     }
   };
 
+  // Show loading state during authentication check or form submission
+  if (status === 'loading' || status === 'unauthenticated' || isSubmitting) {
+    return (
+      <div className="min-h-screen flex flex-col bg-base-100">
+        
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center items-center flex flex-col">
+            <div className="w-10 h-10 border-4 border-teal-500/50 border-t-teal-500 rounded-full animate-spin mb-4"></div>
+            <p className="text-slate-300">
+              {isSubmitting 
+                ? "Creating post..." 
+                : status === 'loading' 
+                  ? "Checking authentication..." 
+                  : "Redirecting to login..."}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render the page (only when authenticated)
   return (
-    <div className="drawer lg:drawer-open bg-gradient-to-br from-slate-950 to-slate-900">
+    <div className="drawer lg:drawer-open bg-base-200">
       <input id="main-drawer" type="checkbox" className="drawer-toggle" />
       
       <div className="drawer-content flex flex-col min-h-screen">
@@ -209,7 +231,7 @@ export default function CreatePostPage() {
         )}
         
         <main className="flex-1 flex items-center justify-center p-4 py-12 pt-20">
-          <div className="card w-full max-w-2xl bg-base-200 shadow-xl">
+          <div className="card w-full max-w-2xl bg-base-300 shadow-xl">
             <div className="card-body">
               <div className="flex items-center gap-4 mb-4">
                 <div className="avatar placeholder">

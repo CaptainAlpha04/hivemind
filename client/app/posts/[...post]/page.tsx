@@ -401,16 +401,16 @@ export default function SinglePostPage() {
       <Header />
       <Sidebar />
       
-      <main className="flex-1 p-8 flex flex-col gap-6 ml-[280px] mt-[70px]">
-        <div className="flex gap-6 relative">
+      <main className="flex-1 p-4 md:p-8 flex flex-col gap-4 md:gap-6 md:ml-[280px] mt-[56px] md:mt-[70px] mb-[60px] md:mb-0">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           {/* Main Content - Post Details */}
-          <section className="flex-[2] flex flex-col gap-6 max-w-[calc(100%-372px)]">
+          <section className="w-full md:flex-[2] md:max-w-[calc(100%-372px)]">
             {loading ? (
-              <div className="card bg-base-300 rounded-2xl p-6 min-h-[200px] flex justify-center items-center">
+              <div className="card bg-base-300 rounded-xl md:rounded-2xl p-4 md:p-6 min-h-[200px] flex justify-center items-center">
                 <span className="loading loading-spinner loading-lg text-primary"></span>
               </div>
             ) : error ? (
-              <div className="card bg-base-300 rounded-2xl p-6 min-h-[200px] flex justify-center items-center">
+              <div className="card bg-base-300 rounded-xl md:rounded-2xl p-4 md:p-6 min-h-[200px] flex justify-center items-center">
                 <div className="text-red-400 text-center">
                   <p className="font-bold">Error</p>
                   <p className="mt-2">{error}</p>
@@ -439,14 +439,14 @@ export default function SinglePostPage() {
                 singlePostView={true} // Always show comments in single post view
               />
             ) : (
-              <div className="card bg-base-300 rounded-2xl p-6 min-h-[200px] flex justify-center items-center">
+              <div className="card bg-base-300 rounded-xl md:rounded-2xl p-4 md:p-6 min-h-[200px] flex justify-center items-center">
                 <p className="text-base-content/60 text-center">Post not found</p>
               </div>
             )}
           </section>
           
-          {/* Sidebar - Related Posts or Trending */}
-          <aside className="sticky top-[102px] self-start w-[340px] card bg-base-300 rounded-2xl p-6 max-h-[calc(100vh-150px)] overflow-auto scrollbar-hide">
+          {/* Desktop Sidebar - Related Posts */}
+          <aside className="hidden md:block sticky top-[102px] self-start w-[340px] card bg-base-300 rounded-2xl p-6 max-h-[calc(100vh-150px)] overflow-auto scrollbar-hide">
             <h2 className="text-accent font-bold text-xl mb-4">Related Posts</h2>
             
             {relatedPosts.length > 0 ? (
@@ -467,6 +467,41 @@ export default function SinglePostPage() {
             )}
           </aside>
         </div>
+        
+        {/* Mobile Related Posts Section (at the bottom) */}
+        {relatedPosts.length > 0 && (
+          <div className="md:hidden mt-2 card bg-base-300 rounded-xl p-4">
+            <h2 className="text-accent font-bold text-lg mb-3">Related Posts</h2>
+            
+            <div className="space-y-4">
+              {relatedPosts.slice(0, 3).map((relatedPost) => (
+                <div 
+                  key={relatedPost._id} 
+                  className="border-b border-base-200 pb-3 last:border-none last:pb-0 cursor-pointer hover:bg-base-200 p-2 rounded-lg transition-colors" 
+                  onClick={() => window.location.href = `/posts/${relatedPost._id}`}
+                >
+                  <div className="text-base-content font-semibold text-sm">
+                    u/{relatedPost.username} <span className="text-gray-400 font-normal text-xs ml-2">{formatDate(relatedPost.createdAt)}</span>
+                  </div>
+                  <div className="text-base-content font-medium text-sm my-1 line-clamp-2">{relatedPost.heading}</div>
+                  <div className="text-gray-400 font-normal text-xs">
+                    {formatNumber(relatedPost.likes.length)} likes &nbsp;·&nbsp; 
+                    {formatNumber(relatedPost.comments.length)} comments
+                  </div>
+                </div>
+              ))}
+              
+              {relatedPosts.length > 3 && (
+                <button 
+                  className="w-full text-center text-sm text-primary font-medium py-2"
+                  onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}
+                >
+                  Show more related posts
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -11,6 +11,7 @@ import chatRoutes from './api/chatRoutes.mjs'; // New import for consolidated ch
 import recommendationRoutes from './api/recommendationRoutes.mjs'; // Import recommendation routes
 import botRoutes from './api/botRoutes.mjs'; // Add import for bot routes
 import { verifyConnectivity } from './config/neo4jConfig.mjs'; // Import Neo4j connection verifier
+import storyRoutes from './api/storyRoutes.mjs'; // Import the new story routes
 
 // Importing the routes
 import actorRoute from './agent/routes/actorRoutes.mjs';
@@ -74,6 +75,7 @@ app.use('/api/users', userRoutes); // Some endpoints may be public
 app.use('/api/communities', communityRoutes); // Community routes
 app.use('/api/chats', chatRoutes); // Chat routes
 app.use('/api/recommendations', recommendationRoutes); // Recommendation routes
+app.use('/api/stories', storyRoutes); // Story routes
 
 // Starting the server
 app.listen(port, () => {
