@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Search, Plus } from 'lucide-react';
+import Link from 'next/link';
 
 interface Chat {
   id: string;
@@ -27,6 +28,23 @@ interface ChatMenuProps {
   chats: Chat[];
 }
 
+// Generate a consistent color based on username
+const getUsernameColor = (username: string) => {
+  const colors = [
+    'bg-primary', 'bg-secondary', 'bg-accent', 'bg-info',
+    'bg-success', 'bg-warning', 'bg-error', 'bg-neutral'
+  ];
+  
+  // Simple hash function to generate a consistent index
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+};
+
 function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,7 +61,12 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
           // Use relative URL instead of environment variable
           const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/users`;
           console.log('Fetching users from:', apiUrl);
-          const response = await fetch(apiUrl);
+          const response = await fetch(apiUrl, {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
           
           if (response.ok) {
             const data = await response.json();
@@ -54,14 +77,15 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
                 id: user._id,
                 name: user.name || user.username,
                 username: user.username,
-                profilePicture: '/default-avatar.png', // Use default avatar for now
+                profilePicture: '/images/user.png', // Use default avatar
                 isOnline: true,
                 role: user.role || 'Member'
               }));
             
             setContacts(formattedContacts);
           } else {
-            console.error('Failed to fetch contacts:', response.status);
+            const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+            console.error('Failed to fetch contacts:', response.status, errorData);
           }
         } catch (error) {
           console.error('Error fetching contacts:', error);
@@ -79,7 +103,12 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
     
     try {
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/chats?userId=${userId}`;
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -90,7 +119,7 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
             id: chat._id,
             name: otherParticipant?.name || chat.name || 'Chat',
             username: otherParticipant?.username || 'user',
-            profilePicture: '/default-avatar.png',
+            profilePicture: '/images/user.png',
             hasUnread: chat.lastMessage && 
               !chat.lastMessage.readBy?.includes(userId) && 
               chat.lastMessage.senderId !== userId
@@ -98,6 +127,9 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
         });
         
         setChatList(formattedChats);
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('Error refreshing chats:', response.status, errorData);
       }
     } catch (error) {
       console.error('Error refreshing chats:', error);
@@ -132,12 +164,16 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
         // If not, create a new conversation
         const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/conversations`;
         console.log('Creating conversation at:', apiUrl);
+        console.log('Request payload:', { userId, participantIds: [contact.id] });
+        
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            participantIds: [userId, contact.id]
-          })
+            userId: userId,
+            participantIds: [contact.id]
+          }),
+          credentials: 'include'
         });
         
         if (response.ok) {
@@ -148,7 +184,7 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
             id: newChatData._id,
             name: contact.name,
             username: contact.username,
-            profilePicture: '/default-avatar.png' // Use default avatar for now
+            profilePicture: '/images/user.png' // Use default avatar
           };
           
           // Refresh the chats list to include the new chat
@@ -157,7 +193,8 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
           // Select the new chat
           onSelectChat(newChat);
         } else {
-          console.error('Failed to create chat:', response.status);
+          const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+          console.error('Failed to create chat:', response.status, errorData);
         }
       }
     } catch (error) {
@@ -184,102 +221,114 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
     </div>
   );
 
+  // HiveMind logo component with back button functionality
+  const HiveMindLogo = () => (
+    <Link href="/" className="flex items-center gap-2 mb-3 mt-1 cursor-pointer hover:opacity-80 transition-opacity">
+      <div className="avatar">
+        <Image 
+          src="/images/logo.png" 
+          alt="HiveMind" 
+          width={40} 
+          height={40} 
+        />
+      </div>
+      <div className="text-[28px]">
+        <span className="text-base-content font-light">Hive</span>
+        <span className="text-teal-500 font-bold">Mind</span>
+      </div>
+    </Link>
+  );
+
   return (
-    <div className="bg-base-200 h-full flex flex-col">
-      {/* Search bar */}
-      <div className="p-4">
+    <div className="bg-base-200 h-full flex flex-col text-white">
+      {/* Logo and search bar - fixed position */}
+      <div className="px-10 py-3">
+        <HiveMindLogo />
         <div className="relative">
           <input
             type="text"
             placeholder="Search chats..."
-            className="input input-bordered w-full pl-10"
+            className="input input-bordered bg-base-300 w-full pl-10 border-0 focus:border-0 focus:outline focus:outline-1 focus:outline-gray-500 text-white rounded-full"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50" size={18} />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
         </div>
       </div>
 
-      {/* Contacts section */}
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="text-sm font-medium text-base-content/70">Active Contacts</h3>
-          <button className="btn btn-ghost btn-xs">
-            <Plus size={14} />
-          </button>
-        </div>
-        <div className="space-y-1">
-          {isLoading ? (
-            <div className="flex justify-center py-4">
-              <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-            </div>
-          ) : filteredContacts.length > 0 ? (
-            filteredContacts.map(contact => (
-              <div 
-                key={contact.id}
-                className="flex items-center gap-3 px-3 py-2 hover:bg-base-300 rounded-lg cursor-pointer transition-colors"
-                onClick={() => handleContactClick(contact)}
-              >
-                <Avatar src={contact.profilePicture} online={contact.isOnline} />
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold truncate">{contact.name}</h3>
-                  <p className="text-xs text-base-content/60 truncate">{contact.role || 'User'}</p>
-                </div>
-                <div className="bg-primary rounded-full px-2 py-0.5">
-                  <span className="text-xs text-primary-content font-medium">#{contact.username}</span>
-                </div>
+      {/* Scrollable content container */}
+      <div className="overflow-y-auto flex-1 custom-scrollbar">
+        {/* Contacts section */}
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wide">Contacts</h3>
+            <div className="text-xs text-gray-400">Active</div>
+          </div>
+          <div className="space-y-3">
+            {isLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
               </div>
-            ))
-          ) : (
-            <div className="text-center py-4 text-base-content/50">
-              <p>No contacts found</p>
-            </div>
-          )}
+            ) : filteredContacts.length > 0 ? (
+              filteredContacts.map(contact => (
+                <div 
+                  key={contact.id}
+                  className="flex items-center gap-3 py-2 hover:bg-base-300 rounded-lg cursor-pointer transition-colors"
+                  onClick={() => handleContactClick(contact)}
+                >
+                  <Avatar src={contact.profilePicture} online={contact.isOnline} />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold truncate text-white">{contact.name}</h3>
+                    <p className="text-xs text-gray-400 truncate">{contact.role || 'Member'}</p>
+                  </div>
+                  <div className={`${getUsernameColor(contact.username)} rounded-full px-2 py-0.5`}>
+                    <span className="text-xs text-white font-medium whitespace-nowrap">#{contact.username}</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-400">
+                <p>No contacts found</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Divider */}
-      <div className="divider px-4 my-0"></div>
-      
-      {/* Chats section */}
-      <div className="p-4 flex-1 overflow-y-auto">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="text-sm font-medium text-base-content/70">Conversations</h3>
-          <button className="btn btn-ghost btn-xs">
-            <Plus size={14} />
-          </button>
-        </div>
-        <div className="space-y-1">
-          {filteredChats.length > 0 ? (
-            filteredChats.map(chat => (
-              <div 
-                key={chat.id}
-                className="flex items-center gap-3 px-3 py-2 hover:bg-base-300 rounded-lg cursor-pointer transition-colors"
-                onClick={() => onSelectChat(chat)}
-              >
-                <div className="relative">
+        {/* Divider between contacts and chats */}
+        <div className="h-px bg-base-300 mx-4 my-2"></div>
+        
+        {/* Chats section */}
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wide">Chats</h3>
+          </div>
+          <div className="space-y-3">
+            {filteredChats.length > 0 ? (
+              filteredChats.map(chat => (
+                <div 
+                  key={chat.id}
+                  className="flex items-center gap-3 py-2 hover:bg-base-300 rounded-lg cursor-pointer transition-colors"
+                  onClick={() => onSelectChat(chat)}
+                >
                   <Avatar src={chat.profilePicture} />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold truncate text-white">{chat.name}</h3>
+                    <p className="text-xs text-gray-400 truncate">Software Engineer</p>
+                  </div>
+                  <div className={`${getUsernameColor(chat.username)} rounded-full px-2 py-0.5`}>
+                    <span className="text-xs text-white font-medium">#{chat.username}</span>
+                  </div>
                   {chat.hasUnread && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-xs text-white">
-                      •
-                    </span>
+                    <div className="h-2 w-2 bg-primary rounded-full"></div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold truncate">{chat.name}</h3>
-                  <p className="text-xs text-base-content/60 truncate">Tap to view conversation</p>
-                </div>
-                <div className="bg-neutral rounded-full px-2 py-0.5">
-                  <span className="text-xs text-neutral-content font-medium">#{chat.username}</span>
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-400">
+                <p>No conversations yet</p>
               </div>
-            ))
-          ) : (
-            <div className="text-center py-4 text-base-content/50">
-              <p>No conversations yet</p>
-              <p className="text-xs">Start chatting with a contact!</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

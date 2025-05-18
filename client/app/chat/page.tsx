@@ -10,6 +10,7 @@ interface Chat {
   name: string;
   username: string;
   profilePicture: string;
+  hasUnread?: boolean;
 }
 
 export default function Page() {
@@ -49,7 +50,7 @@ export default function Page() {
             id: chat._id,
             name: otherParticipant?.name || chat.name || 'Chat',
             username: otherParticipant?.username || 'user',
-            profilePicture: '/default-avatar.png', // Use default avatar for now
+            profilePicture: '/images/user.png', // Use default avatar
             hasUnread: chat.lastMessage && 
               !chat.lastMessage.readBy?.includes(userId) && 
               chat.lastMessage.senderId !== userId
@@ -73,7 +74,7 @@ export default function Page() {
   // Show loading state during authentication check
   if (status === 'loading') {
     return (
-      <section className='bg-base-100 min-h-screen w-screen bg-gradient-to-br flex justify-center items-center'>
+      <section className='bg-base-200 min-h-screen w-screen flex justify-center items-center'>
         <div className="flex flex-col items-center">
           <div className="w-10 h-10 border-4 border-teal-500/50 border-t-teal-500 rounded-full animate-spin mb-4"></div>
           <p className="text-slate-300">Loading chat...</p>
@@ -88,7 +89,7 @@ export default function Page() {
   }
 
   // Handle current user profile picture
-  let currentUserProfilePic = session?.user?.image || '/default-avatar.png';
+  let currentUserProfilePic = session?.user?.image || '/images/user.png';
   
   // If it's a buffer reference and not a URL, construct the API URL
   if (session?.user?.id && (!currentUserProfilePic.startsWith('http'))) {
@@ -102,9 +103,9 @@ export default function Page() {
   };
 
   return (
-    <section className='bg-base-100 min-h-screen flex'>
-      {/* Chat menu sidebar */}
-      <div className="w-80 border-r border-base-300">
+    <section className='bg-base-200 min-h-screen flex h-screen overflow-hidden'>
+      {/* Chat menu sidebar - correctly sized and scrollable */}
+      <div className="w-96 h-full overflow-hidden border-r border-base-300">
         <ChatMenu 
           onSelectChat={handleChatSelect}
           userId={currentUser.id}
@@ -113,8 +114,11 @@ export default function Page() {
         />
       </div>
       
-      {/* Chat area main content */}
-      <div className="flex-1">
+      {/* Vertical divider line */}
+      <div className="w-px h-full bg-base-300"></div>
+      
+      {/* Chat area main content - takes remaining space with its own scrolling */}
+      <div className="flex-1 h-full overflow-hidden">
         <ChatArea 
           selectedChat={selectedChat} 
           currentUser={currentUser} 
