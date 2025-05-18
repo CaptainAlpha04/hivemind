@@ -2,9 +2,10 @@
 import { useState, useRef, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Users, Eye, Lock, ImageIcon, ListPlus } from 'lucide-react';
+import { Users, Eye, Lock, ImageIcon, ListPlus, Loader2 } from 'lucide-react';
 import Header from '@/components/ui/Header';
 import Sidebar from '@/components/ui/Sidebar';
+import { toast } from 'react-hot-toast';
 
 export default function CreateHivePage() {
   const router = useRouter();
@@ -21,6 +22,9 @@ export default function CreateHivePage() {
   const [bannerImage, setBannerImage] = useState<File | null>(null);
   const [profilePicPreview, setProfilePicPreview] = useState<string>('');
   const [bannerImagePreview, setBannerImagePreview] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   // Protect this route - redirect to login if not authenticated
   useEffect(() => {
@@ -46,6 +50,29 @@ export default function CreateHivePage() {
     const updatedRules = [...rules];
     updatedRules[index][field] = value;
     setRules(updatedRules);
+  };
+
+  // Validate name input
+  const validateName = (value: string) => {
+    if (!value.trim()) {
+      setNameError('Name cannot be empty');
+      return false;
+    } else if (value.includes(' ')) {
+      setNameError('Name cannot contain spaces');
+      return false;
+    } else if (value.length < 3) {
+      setNameError('Name must be at least 3 characters');
+      return false;
+    }
+    setNameError(null);
+    return true;
+  };
+
+  // Handle name change with validation
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setName(value);
+    validateName(value);
   };
 
   // Handle profile picture selection
@@ -79,39 +106,47 @@ export default function CreateHivePage() {
   // Form submission handler
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setErrorMessage(null);
+    
+    // Reset and check validation
+    if (!validateName(name)) {
+      return;
+    }
 
     if (status === 'loading') {
-      console.log('Authentication status loading...');
+      toast.error('Still checking authentication status. Please wait.');
       return;
     }
 
     // Check for authentication and access token
     if (status !== 'authenticated' || !session?.user?.accessToken) {
-      console.error('User not authenticated or access token not available.');
-      alert('You must be logged in to create a hive, or your session is missing an access token.');
+      setErrorMessage('You must be logged in to create a hive, or your session is missing an access token');
+      toast.error('Authentication error. Please log in again.');
       return;
     }
 
     // Validate form
-    if (!name.trim() || !description.trim()) {
-      alert('Please fill in all required fields');
+    if (!description.trim()) {
+      setErrorMessage('Please fill in the description field');
       return;
     }
 
     // Filter out empty rules
     const filteredRules = rules.filter(rule => rule.title.trim() && rule.description.trim());
 
+    setIsSubmitting(true);
+
     const formData = new FormData();
-    formData.append('name', name);
-    formData.append('description', description);
+    formData.append('name', name.trim());
+    formData.append('description', description.trim());
     formData.append('isPrivate', String(isPrivate));
     formData.append('rules', JSON.stringify(filteredRules));
     
     if (session?.user?.id) {
       formData.append('userId', session.user.id);
     } else {
-      console.error('User ID not found in session.');
-      alert('Your session is missing a user ID. Cannot create hive.');
+      setErrorMessage('Your session is missing a user ID. Cannot create hive.');
+      setIsSubmitting(false);
       return;
     } 
 
@@ -130,46 +165,53 @@ export default function CreateHivePage() {
       const response = await fetch(`${apiUrl}/api/communities`, {
         method: 'POST',
         body: formData,
-        credentials: 'include', // Important: This sends cookies with the request
+        credentials: 'include',
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Hive created:', data);
+        toast.success('Hive created successfully!');
         router.push('/hives');
       } else {
         const errorData = await response.json().catch(() => null);
-        console.error('Error creating hive:', response.statusText, errorData);
-        alert(`Failed to create hive: ${errorData?.message || response.statusText}`);
+        const errorMsg = errorData?.message || response.statusText || 'Unknown error';
+        setErrorMessage(`Failed to create hive: ${errorMsg}`);
+        toast.error(`Hive creation failed: ${errorMsg}`);
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert('An error occurred while creating the hive. Please try again.');
+      setErrorMessage('An error occurred while creating the hive. Please try again.');
+      toast.error('Network error. Please check your connection.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Show loading state while checking authentication
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900">
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-base-300 to-base-100">
         <Header />
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin h-8 w-8 border-4 border-teal-400 rounded-full border-t-transparent"></div>
+          <div className="card bg-base-200 shadow-xl p-8 flex flex-col items-center">
+            <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+            <p className="text-lg font-medium">Loading your session...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-base-300 to-base-100">
       <Header />
       <div className="flex mt-[70px]">
         <Sidebar />
         <main className="flex-1 ml-[280px] py-8 px-6">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-4 mb-8">
-              <div className="bg-base-200 p-3 rounded-lg shadow-sm">
-                <Users className="h-7 w-7 text-base-content" />
+              <div className="bg-primary bg-opacity-20 p-3 rounded-lg shadow-sm">
+                <Users size={24} color='white' />
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-base-content">Create New Hive</h1>
@@ -177,31 +219,48 @@ export default function CreateHivePage() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8 card bg-base-100 shadow-xl p-6 rounded-2xl">
+            {errorMessage && (
+              <div className="alert alert-error mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8 card bg-base-200 shadow-xl p-6 rounded-2xl">
               {/* Hive Name */}
               <div className="form-control">
-                <label className="block text-lg mb-2 text-base-content font-bold">Hive Name *</label>
+                <label className="block text-lg mb-2 text-base-content font-bold">
+                  Hive Name <span className="text-error">*</span>
+                </label>
                 <input
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="input input-bordered w-full bg-base-200 text-base-content focus:border-primary transition"
-                  placeholder="Name your community (3-50 characters)"
+                  onChange={handleNameChange}
+                  className={`input input-bordered w-full bg-base-100 text-base-content focus:border-primary transition ${nameError ? 'input-error' : ''}`}
+                  placeholder="Name your community (3-50 characters, no spaces)"
                   minLength={3}
                   maxLength={50}
                   required
                 />
-                <p className="text-base-content/60 text-sm mt-1">Choose a unique, memorable name for your hive</p>
+                {nameError ? (
+                  <p className="text-error text-sm mt-1">{nameError}</p>
+                ) : (
+                  <p className="text-base-content/60 text-sm mt-1">Choose a unique, memorable name for your hive (no spaces allowed)</p>
+                )}
               </div>
 
               {/* Description */}
               <div className="form-control">
-                <label className="block text-lg mb-2 text-base-content font-bold">Description *</label>
+                <label className="block text-lg mb-2 text-base-content font-bold">
+                  Description <span className="text-error">*</span>
+                </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
-                  className="textarea textarea-bordered w-full bg-base-200 text-base-content focus:border-primary transition"
+                  className="textarea textarea-bordered w-full bg-base-100 text-base-content focus:border-primary transition"
                   placeholder="Describe what your hive is about (max 500 characters)"
                   maxLength={500}
                   required
@@ -223,12 +282,12 @@ export default function CreateHivePage() {
                   <label htmlFor="isPrivate" className="text-base-content cursor-pointer flex items-center gap-2">
                     {isPrivate ? (
                       <>
-                        <Lock className="w-5 h-5 text-base-content" />
+                        <Lock className="w-5 h-5 text-primary" />
                         <span>Private Hive</span>
                       </>
                     ) : (
                       <>
-                        <Eye className="w-5 h-5 text-base-content" />
+                        <Eye className="w-5 h-5 text-primary" />
                         <span>Public Hive</span>
                       </>
                     )}
@@ -250,12 +309,12 @@ export default function CreateHivePage() {
                       <img 
                         src={profilePicPreview} 
                         alt="Profile Preview" 
-                        className="w-24 h-24 rounded-full object-cover border-2 border-base-300"
+                        className="w-24 h-24 rounded-full object-cover border-2 border-primary/30"
                       />
                       <button
                         type="button"
                         onClick={() => { setProfilePic(null); setProfilePicPreview(''); }}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                        className="absolute -top-2 -right-2 bg-error text-white rounded-full p-1 hover:bg-error/80 transition-colors"
                       >
                         ✕
                       </button>
@@ -263,16 +322,16 @@ export default function CreateHivePage() {
                   ) : (
                     <div
                       onClick={() => profilePicRef.current?.click()}
-                      className="w-24 h-24 rounded-full bg-base-200 flex items-center justify-center cursor-pointer hover:bg-base-300 transition-colors"
+                      className="w-24 h-24 rounded-full bg-base-100 flex items-center justify-center cursor-pointer hover:bg-base-300 transition-colors border-2 border-dashed border-primary/30"
                     >
-                      <ImageIcon size={32} className="text-base-content/70" />
+                      <ImageIcon size={32} className="text-primary/70" />
                     </div>
                   )}
                   <div>
                     <button
                       type="button"
                       onClick={() => profilePicRef.current?.click()}
-                      className="btn btn-outline"
+                      className="btn btn-outline btn-primary"
                     >
                       {profilePicPreview ? 'Change Profile Picture' : 'Upload Profile Picture'}
                     </button>
@@ -296,12 +355,12 @@ export default function CreateHivePage() {
                     <img 
                       src={bannerImagePreview} 
                       alt="Banner Preview" 
-                      className="w-full h-48 object-cover rounded-lg border-2 border-base-300"
+                      className="w-full h-48 object-cover rounded-lg border-2 border-primary/30"
                     />
                     <button
                       type="button"
                       onClick={() => { setBannerImage(null); setBannerImagePreview(''); }}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      className="absolute top-2 right-2 bg-error text-white rounded-full p-1 hover:bg-error/80 transition-colors"
                     >
                       ✕
                     </button>
@@ -309,9 +368,9 @@ export default function CreateHivePage() {
                 ) : (
                   <div
                     onClick={() => bannerImageRef.current?.click()}
-                    className="w-full h-48 rounded-lg bg-base-200 flex flex-col items-center justify-center cursor-pointer hover:bg-base-300 transition-colors"
+                    className="w-full h-48 rounded-lg bg-base-100 flex flex-col items-center justify-center cursor-pointer hover:bg-base-300 transition-colors border-2 border-dashed border-primary/30"
                   >
-                    <ImageIcon size={48} className="text-base-content/70 mb-2" />
+                    <ImageIcon size={48} className="text-primary/70 mb-2" />
                     <p className="text-base-content/80">Click to upload banner image</p>
                   </div>
                 )}
@@ -332,7 +391,7 @@ export default function CreateHivePage() {
                   <button
                     type="button"
                     onClick={addRule}
-                    className="btn btn-sm"
+                    className="btn btn-sm btn-primary btn-outline"
                   >
                     <ListPlus size={16} className="mr-1" /> Add Rule
                   </button>
@@ -340,14 +399,14 @@ export default function CreateHivePage() {
                 
                 <div className="space-y-4">
                   {rules.map((rule, index) => (
-                    <div key={index} className="bg-base-200 p-4 rounded-lg">
+                    <div key={index} className="bg-base-100 p-4 rounded-lg border border-base-300">
                       <div className="flex justify-between items-center mb-2">
                         <h3 className="text-base-content font-medium">Rule #{index + 1}</h3>
                         {rules.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeRule(index)}
-                            className="text-red-400 hover:text-red-300 transition-colors"
+                            className="text-error hover:text-error/80 btn btn-sm btn-ghost"
                           >
                             Remove
                           </button>
@@ -362,7 +421,7 @@ export default function CreateHivePage() {
                             value={rule.title}
                             onChange={(e) => updateRule(index, 'title', e.target.value)}
                             placeholder="Rule title"
-                            className="input input-bordered w-full bg-base-100 text-base-content mt-1 focus:border-primary"
+                            className="input input-bordered w-full bg-base-200 text-base-content mt-1 focus:border-primary"
                           />
                         </div>
                         
@@ -372,7 +431,7 @@ export default function CreateHivePage() {
                             value={rule.description}
                             onChange={(e) => updateRule(index, 'description', e.target.value)}
                             placeholder="Explain the rule"
-                            className="textarea textarea-bordered w-full bg-base-100 text-base-content mt-1 focus:border-primary"
+                            className="textarea textarea-bordered w-full bg-base-200 text-base-content mt-1 focus:border-primary"
                             rows={2}
                           ></textarea>
                         </div>
@@ -388,9 +447,15 @@ export default function CreateHivePage() {
               <div className="flex justify-end mt-8">
                 <button
                   type="submit"
-                  className="btn btn-lg px-8"
+                  className="btn btn-lg btn-primary px-8"
+                  disabled={isSubmitting || !!nameError}
                 >
-                  Create Hive
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Creating...
+                    </>
+                  ) : 'Create Hive'}
                 </button>
               </div>
             </form>
@@ -399,4 +464,4 @@ export default function CreateHivePage() {
       </div>
     </div>
   );
-} 
+}

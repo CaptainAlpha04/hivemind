@@ -33,6 +33,7 @@ const ProfileDropdown = () => {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [ringColor, setRingColor] = useState<string | undefined>('cyan-500');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isSigningOut && status === "unauthenticated") {
@@ -42,33 +43,35 @@ const ProfileDropdown = () => {
   
   useEffect(() => {
     const fetchData = async () => {
-      const data = await getUserDetails();
-      if (data) {
-        setUserData(data);
+      // Only fetch data if session exists and has loaded
+      if (status === 'authenticated' && session?.user?.id) {
+        console.log("Fetching user data with ID:", session.user.id);
+        const data = await getUserDetails();
+        
+        if (data) {
+          setUserData(data);
 
-        if (data.bannerColor) {
-        const ringColor = data.bannerColor.replace("bg-", "");
-        console.log("Ring color:", ringColor);
-        setRingColor(ringColor);
-      }
-        // Handle the profile picture if it exists
-        if (data.hasProfilePicture && data.profilePicture) {
-          try {
-            // Convert the blob data to a URL
-            const blob = convertBase64ToBlob(data.profilePicture);
-            const imageUrl = URL.createObjectURL(blob);
-            setProfileImageUrl(imageUrl);
-          } catch (error) {
-            console.error("Error converting profile picture:", error);
-            // Fallback to default avatar
-            setProfileImageUrl('/images/user.png');
+          if (data.bannerColor) {
+            const color = data.bannerColor.replace("bg-", "");
+            setRingColor(color);
           }
-        } else if (data.image) {
-          // If there's an image URL available but no blob data
-          setProfileImageUrl(data.image);
+          
+          // Handle profile picture
+          if (data.hasProfilePicture && data.profilePicture) {
+            try {
+              const blob = convertBase64ToBlob(data.profilePicture);
+              const imageUrl = URL.createObjectURL(blob);
+              setProfileImageUrl(imageUrl);
+            } catch (error) {
+              console.error("Error converting profile picture:", error);
+              setProfileImageUrl('/images/user.png');
+            }
+          } else if (data.image) {
+            setProfileImageUrl(data.image);
+          }
+        } else {
+          setError("Failed to fetch user data");
         }
-      } else {
-        console.error("Failed to fetch user data");
       }
     };
     
@@ -80,9 +83,7 @@ const ProfileDropdown = () => {
         URL.revokeObjectURL(profileImageUrl);
       }
     };
-
-
-  }, []);
+  }, [status, session]); // Add status and session as dependencies
 
   const convertBase64ToBlob = (base64String: string): Blob => {
     // Remove potential data URL prefix
@@ -115,17 +116,24 @@ const ProfileDropdown = () => {
 
   const getUserDetails = async () => {
     if (!session?.user?.id) {
-      console.error("User ID is not available");
+      console.error("User ID is not available in session:", session);
       return null;
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${session.user.id}`);
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/users/${session.user.id}`;
+      console.log("Fetching user details from:", url);
+      
+      const response = await fetch(url, {
+        credentials: 'include', // Include credentials for cross-domain requests
+      });
+      
       if (!response.ok) {
-        throw new Error(`Failed to fetch user details: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch user details: ${response.status} ${response.statusText} - ${errorText}`);
       }
+      
       const data = await response.json();
-      console.log("User details:", data);
       return data;
     } catch (error) {
       console.error("Error fetching user details:", error);
