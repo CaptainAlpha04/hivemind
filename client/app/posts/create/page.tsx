@@ -27,14 +27,7 @@ export default function CreatePostPage() {
   
   const MAX_IMAGES = 5;
 
-  // Authentication check on component mount
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push(`/auth/login?callbackUrl=${encodeURIComponent('/posts/create')}`);
-    }
-  }, [status, router]);
-
-  // Fetch communities when authenticated
+  // Fetch communities when component mounts
   useEffect(() => {
     if (status === 'authenticated') {
       fetchCommunities();
@@ -132,9 +125,8 @@ export default function CreatePostPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    if (!session?.user?.id) {
-      alert('You must be logged in to create a post');
-      router.push('/auth/login?callbackUrl=/posts/create');
+    if (status === 'loading') {
+      console.log('Authentication status loading...');
       return;
     }
 
@@ -178,7 +170,7 @@ export default function CreatePostPage() {
         console.log('Post created:', data);
         document.getElementById('success-modal')?.classList.add('modal-open');
         setTimeout(() => {
-          router.push('/');
+          router.push('/posts');
         }, 1500);
       } else {
         document.getElementById('error-modal')?.classList.add('modal-open');
@@ -204,7 +196,7 @@ export default function CreatePostPage() {
   // Show loading state during authentication check or form submission
   if (status === 'loading' || status === 'unauthenticated' || isSubmitting) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900">
+      <div className="min-h-screen flex flex-col bg-base-100">
         
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center items-center flex flex-col">
@@ -224,14 +216,22 @@ export default function CreatePostPage() {
 
   // Render the page (only when authenticated)
   return (
-    <div className="drawer lg:drawer-open bg-gradient-to-br from-slate-950 to-slate-900">
+    <div className="drawer lg:drawer-open bg-base-200">
       <input id="main-drawer" type="checkbox" className="drawer-toggle" />
       
       <div className="drawer-content flex flex-col min-h-screen">
         <Header />
-        <Sidebar />
+        
+        {/* Auth Status Badge - Development Only */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="fixed top-20 left-4 badge badge-lg badge-primary gap-2 z-50">
+            <div className={`badge ${status === 'authenticated' ? 'badge-success' : 'badge-error'}`}></div>
+            {status}
+          </div>
+        )}
+        
         <main className="flex-1 flex items-center justify-center p-4 py-12 pt-20">
-          <div className="card w-full max-w-2xl bg-base-200 shadow-xl">
+          <div className="card w-full max-w-2xl bg-base-300 shadow-xl">
             <div className="card-body">
               <div className="flex items-center gap-4 mb-4">
                 <div className="avatar placeholder">
@@ -473,8 +473,15 @@ export default function CreatePostPage() {
           </div>
         </main>
         
+        <Footer />
       </div>
       
+      <div className="drawer-side">
+        <label htmlFor="main-drawer" aria-label="close sidebar" className="drawer-overlay"></label>
+        <Sidebar />
+      </div>
+      
+      {/* Modals */}
       {/* Auth Error Modal */}
       <div id="auth-error-modal" className="modal">
         <div className="modal-box">

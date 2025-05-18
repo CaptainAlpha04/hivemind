@@ -32,18 +32,18 @@ router.post('/', upload.fields([
             return res.status(400).json({ message: 'A community with this name already exists' });
         }
 
-        const profilePic = req.files['profilePic'] ? req.files['profilePic'][0] : null;
+        const profilePicture = req.files['profilePicture'] ? req.files['profilePicture'][0] : null;
         const bannerImage = req.files['bannerImage'] ? req.files['bannerImage'][0] : null;
 
         const community = new Community({
             name,
             description,
             creator: creatorId,
-            isPrivate: isPrivate || false,
+            isPrivate: isPrivate === 'true', // Convert string to boolean
             // moderators and members will be automatically populated with creator via schema pre-save hook
-            profilePic: profilePic ? {
-                data: profilePic.buffer,
-                contentType: profilePic.mimetype
+            profilePicture: profilePicture ? {
+                data: profilePicture.buffer,
+                contentType: profilePicture.mimetype
             } : null,
 
             bannerImage: bannerImage ? {
@@ -115,6 +115,33 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET /api/communities/:userId - Get communities for a specific user
+router.get('/user/:userId', async (req, res) => {
+    const { userId } = req.params;
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    try {
+        const user = await User.findById(userId).populate('communities', 'name description isPrivate profilePicture bannerImage');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const communities = user.communities.map(community => ({
+            _id: community._id,
+            name: community.name,
+            description: community.description,
+            isPrivate: community.isPrivate,
+            profilePicture: community.profilePicture,
+            bannerImage: community.bannerImage
+        }));
+        res.status(200).json(communities);
+    } catch (error) {
+        console.error('Error fetching user communities:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
 // GET /api/communities/:communityId - Get a specific community by ID
 router.get('/:communityId', async (req, res) => {
     const { communityId } = req.params;
@@ -141,18 +168,29 @@ router.get('/:communityId', async (req, res) => {
             }
         }
 
-        res.status(200).json(community);
+        // Create a response object that includes all necessary data
+        const communityResponse = community.toObject();
+        
+        // Instead of replacing with URLs, keep the original data for frontend
+        // and just add user-specific flags
+        if (userId) {
+            communityResponse.isMember = community.members.some(id => id.toString() === userId);
+            communityResponse.isModerator = community.moderators.some(id => id.toString() === userId);
+            communityResponse.isCreator = community.creator.toString() === userId;
+        }
+
+        res.status(200).json(communityResponse);
     } catch (error) {
         console.error('Error fetching community:', error);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 });
-
 // --- Community Membership Endpoints ---
 
 // POST /api/communities/:communityId/join - Join a community
 router.post('/:communityId/join', async (req, res) => {
-    const { communityId, userId } = req.params;
+    const { communityId } = req.params;
+    const { userId } = req.body; // Assuming userId is sent in the request body
 
     if (!mongoose.Types.ObjectId.isValid(communityId)) { // Removed userId validation as it's optional now
         return res.status(400).json({ message: 'Invalid community ID format' });
@@ -188,61 +226,17 @@ router.post('/:communityId/join', async (req, res) => {
     }
 });
 
-// GET /api/communities/:communityId/profile-picture - Get community profile picture
-router.get('/:communityId/profile-picture', async (req, res) => {
-  const { communityId } = req.params;
-  
-  if (!mongoose.Types.ObjectId.isValid(communityId)) {
-    return res.status(400).json({ message: 'Invalid community ID format' });
-  }
-
-  try {
-    const community = await Community.findById(communityId).select('profilePicture');
-    
-    if (!community || !community.profilePicture || !community.profilePicture.data) {
-      return res.status(404).sendFile(path.join(__dirname, '../public/default-profile.png'));
-    }
-
-    res.set('Content-Type', community.profilePicture.contentType);
-    res.send(community.profilePicture.data);
-  } catch (error) {
-    console.error('Error fetching community profile picture:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
-// GET /api/communities/:communityId/banner - Get community banner image
-router.get('/:communityId/banner', async (req, res) => {
-  const { communityId } = req.params;
-  
-  if (!mongoose.Types.ObjectId.isValid(communityId)) {
-    return res.status(400).json({ message: 'Invalid community ID format' });
-  }
-
-  try {
-    const community = await Community.findById(communityId).select('bannerImage');
-    
-    if (!community || !community.bannerImage || !community.bannerImage.data) {
-      return res.status(404).sendFile(path.join(__dirname, '../public/default-banner.png'));
-    }
-
-    res.set('Content-Type', community.bannerImage.contentType);
-    res.send(community.bannerImage.data);
-  } catch (error) {
-    console.error('Error fetching community banner image:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
+// Fix the leave community route
 
 // POST /api/communities/:communityId/leave - Leave a community
 router.post('/:communityId/leave', async (req, res) => {
-    const { communityId, userId } = req.params;
+    const { communityId } = req.params;
+    const { userId } = req.body; // Get userId from req.body
 
-    if (!mongoose.Types.ObjectId.isValid(communityId)) { // Removed userId validation
+    if (!mongoose.Types.ObjectId.isValid(communityId)) {
         return res.status(400).json({ message: 'Invalid community ID format' });
     }
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) { // Check if userId is present for this action
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(401).json({ message: 'User ID is required to leave a community.' });
     }
 
@@ -256,24 +250,223 @@ router.post('/:communityId/leave', async (req, res) => {
             return res.status(400).json({ message: 'Creator cannot leave the community. Consider deleting or transferring ownership.'});
         }
 
-        const memberIndex = community.members.indexOf(userId);
+        // Find index of user in members array
+        const memberIndex = community.members.findIndex(id => id.toString() === userId);
         if (memberIndex === -1) {
             return res.status(400).json({ message: 'User is not a member of this community' });
         }
 
+        // Remove from members array
         community.members.splice(memberIndex, 1);
+        
         // Also remove from moderators if they were one (and not the creator)
-        const moderatorIndex = community.moderators.indexOf(userId);
+        const moderatorIndex = community.moderators.findIndex(id => id.toString() === userId);
         if (moderatorIndex > -1 && !community.creator.equals(userId)) {
             community.moderators.splice(moderatorIndex, 1);
         }
+        
         await community.save();
 
-        await User.findByIdAndUpdate(userId, { $pull: { communities: communityId, moderatedCommunities: communityId } });
+        // Remove community from user's communities and moderatedCommunities arrays
+        await User.findByIdAndUpdate(userId, { 
+            $pull: { 
+                communities: communityId, 
+                moderatedCommunities: communityId 
+            } 
+        });
 
-        res.status(200).json({ message: 'Successfully left community', community });
+        res.status(200).json({ 
+            message: 'Successfully left community', 
+            communityId: community._id 
+        });
     } catch (error) {
         console.error('Error leaving community:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// Add moderator management routes
+
+// POST /api/communities/:communityId/moderators - Add a moderator
+router.post('/:communityId/moderators', async (req, res) => {
+    const { communityId } = req.params;
+    const { userId, newModeratorId } = req.body;
+    
+    if (!mongoose.Types.ObjectId.isValid(communityId) || 
+        !mongoose.Types.ObjectId.isValid(userId) ||
+        !mongoose.Types.ObjectId.isValid(newModeratorId)) {
+        return res.status(400).json({ message: 'Invalid ID format' });
+    }
+    
+    try {
+        const community = await Community.findById(communityId);
+        if (!community) {
+            return res.status(404).json({ message: 'Community not found' });
+        }
+        
+        // Check if user is authorized (creator or moderator)
+        if (!community.creator.equals(userId) && !community.moderators.some(id => id.equals(userId))) {
+            return res.status(403).json({ message: 'You do not have permission to add moderators' });
+        }
+        
+        // Check if target user is a member
+        if (!community.members.some(id => id.equals(newModeratorId))) {
+            return res.status(400).json({ message: 'User must be a member to become a moderator' });
+        }
+        
+        // Check if target is already a moderator
+        if (community.moderators.some(id => id.equals(newModeratorId))) {
+            return res.status(400).json({ message: 'User is already a moderator' });
+        }
+        
+        // Add user to moderators
+        community.moderators.push(newModeratorId);
+        await community.save();
+        
+        // Add community to user's moderated communities
+        await User.findByIdAndUpdate(newModeratorId, {
+            $addToSet: { moderatedCommunities: communityId }
+        });
+        
+        res.status(200).json({ 
+            message: 'Successfully added moderator', 
+            communityId: community._id 
+        });
+    } catch (error) {
+        console.error('Error adding moderator:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// Add community edit functionality
+
+// PUT /api/communities/:communityId - Update community details
+router.put('/:communityId', upload.fields([
+    { name: 'profilePicture', maxCount: 1 },
+    { name: 'bannerImage', maxCount: 1 }
+]), async (req, res) => {
+    const { communityId } = req.params;
+    const { name, description, isPrivate, userId, rules } = req.body;
+    
+    if (!mongoose.Types.ObjectId.isValid(communityId) || !mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid ID format' });
+    }
+    
+    try {
+        const community = await Community.findById(communityId);
+        if (!community) {
+            return res.status(404).json({ message: 'Community not found' });
+        }
+        
+        // Check if user is authorized (creator or moderator)
+        if (!community.creator.equals(userId) && !community.moderators.some(id => id.equals(userId))) {
+            return res.status(403).json({ message: 'You do not have permission to edit this community' });
+        }
+        
+        // Update fields if provided
+        if (name) community.name = name;
+        if (description) community.description = description;
+        if (isPrivate !== undefined) {
+            // Only creator can change privacy setting
+            if (community.creator.equals(userId)) {
+                community.isPrivate = isPrivate;
+            } else {
+                return res.status(403).json({ message: 'Only the creator can change privacy settings' });
+            }
+        }
+        
+        // Update rules if provided
+        if (rules && Array.isArray(JSON.parse(rules))) {
+            community.rules = JSON.parse(rules);
+        }
+        
+        // Update profile picture if provided
+        if (req.files && req.files['profilePicture'] && req.files['profilePicture'][0]) {
+            community.profilePicture = {
+                data: req.files['profilePicture'][0].buffer,
+                contentType: req.files['profilePicture'][0].mimetype
+            };
+        }
+        
+        // Update banner image if provided
+        if (req.files && req.files['bannerImage'] && req.files['bannerImage'][0]) {
+            community.bannerImage = {
+                data: req.files['bannerImage'][0].buffer,
+                contentType: req.files['bannerImage'][0].mimetype
+            };
+        }
+        
+        await community.save();
+        
+        // Create response without binary data
+        const communityResponse = community.toObject();
+        if (communityResponse.profilePicture && communityResponse.profilePicture.data) {
+            communityResponse.profilePictureUrl = `/api/communities/${communityId}/profile-picture`;
+            delete communityResponse.profilePicture.data;
+        }
+        if (communityResponse.bannerImage && communityResponse.bannerImage.data) {
+            communityResponse.bannerImageUrl = `/api/communities/${communityId}/banner`;
+            delete communityResponse.bannerImage.data;
+        }
+        
+        res.status(200).json({
+            message: 'Community updated successfully',
+            community: communityResponse
+        });
+    } catch (error) {
+        console.error('Error updating community:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// DELETE /api/communities/:communityId/moderators/:moderatorId - Remove a moderator
+router.delete('/:communityId/moderators/:moderatorId', async (req, res) => {
+    const { communityId, moderatorId } = req.params;
+    const { userId } = req.body;
+    
+    if (!mongoose.Types.ObjectId.isValid(communityId) || 
+        !mongoose.Types.ObjectId.isValid(userId) ||
+        !mongoose.Types.ObjectId.isValid(moderatorId)) {
+        return res.status(400).json({ message: 'Invalid ID format' });
+    }
+    
+    try {
+        const community = await Community.findById(communityId);
+        if (!community) {
+            return res.status(404).json({ message: 'Community not found' });
+        }
+        
+        // Check if user is authorized (creator or the moderator removing themselves)
+        if (!community.creator.equals(userId) && !userId.equals(moderatorId)) {
+            return res.status(403).json({ message: 'You do not have permission to remove this moderator' });
+        }
+        
+        // Cannot remove creator from moderators
+        if (community.creator.equals(moderatorId)) {
+            return res.status(400).json({ message: 'Cannot remove creator from moderators' });
+        }
+        
+        // Check if target is a moderator
+        const moderatorIndex = community.moderators.findIndex(id => id.equals(moderatorId));
+        if (moderatorIndex === -1) {
+            return res.status(400).json({ message: 'User is not a moderator' });
+        }
+        
+        // Remove user from moderators
+        community.moderators.splice(moderatorIndex, 1);
+        await community.save();
+        
+        // Remove community from user's moderated communities
+        await User.findByIdAndUpdate(moderatorId, {
+            $pull: { moderatedCommunities: communityId }
+        });
+        
+        res.status(200).json({ 
+            message: 'Successfully removed moderator', 
+            communityId: community._id 
+        });
+    } catch (error) {
+        console.error('Error removing moderator:', error);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 });

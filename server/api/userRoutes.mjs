@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt';
 import User from '../model/user.mjs';
 import neo4jService from '../services/neo4jService.mjs';
 import { hash, compare } from 'bcrypt';
-import {sendWelcomeEmail, sendVerificationCode, sendPasswordResetCode } from '../services/emailService.mjs';
+import {sendWelcomeEmail, sendVerificationCode, sendPasswordResetCode, sendEmailChangeVerification } from '../services/emailService.mjs';
 import Token from '../model/token.mjs';
 import sharp from 'sharp';
 
@@ -474,8 +474,6 @@ router.post('/oauth-user', async (req, res) => {
   }
 
   try {
-    console.log(`Processing OAuth user: ${email} from ${provider}`);
-
     // Check if user exists
     let user = await User.findOne({ email });
     
@@ -494,12 +492,12 @@ router.post('/oauth-user', async (req, res) => {
       
       return res.status(200).json({
         success: true,
-        userId: user._id,
+        userId: user._id.toString(), // Explicitly convert to string
         message: 'User authenticated'
       });
     }
 
-    // Create new OAuth user with Mongoose - WITHOUT a password
+    // Create new OAuth user
     const newUser = new User({
       name,
       email,
@@ -517,9 +515,10 @@ router.post('/oauth-user', async (req, res) => {
     await newUser.save();
     
     console.log(`New OAuth user created: ${newUser._id}`);
+    
     return res.status(201).json({
       success: true,
-      userId: newUser._id,
+      userId: newUser._id.toString(), // Explicitly convert to string
       message: 'OAuth user created'
     });
   } catch (error) {
@@ -1136,6 +1135,179 @@ router.put('/:userId/password', async (req, res) => {
         console.error('Failed to update password:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
     }
+});
+
+// POST /api/users/:userId/request-email-change
+router.post('/:userId/request-email-change', async (req, res) => {
+    const { userId } = req.params;
+    const { currentEmail, newEmail, password } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    try {
+        // Validate the user exists
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Verify current email matches
+        if (user.email !== currentEmail) {
+            return res.status(400).json({ message: 'Current email does not match' });
+        }
+
+        // Check if new email is already in use
+        const existingUser = await User.findOne({ email: newEmail });
+        if (existingUser) {
+            return res.status(400).json({ message: 'Email already in use by another account' });
+        }
+
+        // Only verify password if it was provided
+        if (password) {
+            const isPasswordValid = await compare(password, user.password);
+            if (!isPasswordValid) {
+                return res.status(401).json({ message: 'Incorrect password' });
+            }
+        }
+        // If no password provided, assume validation happened in a previous step
+
+        // Generate verification code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Store verification code in database
+        await Token.deleteMany({ 
+            userId: user._id,
+            type: 'email-change'
+        });
+        
+        const token = new Token({
+            userId: user._id,
+            token: verificationCode,
+            type: 'email-change',
+            metadata: { newEmail }, // Store the new email in metadata
+            createdAt: new Date()
+        });
+        
+        await token.save();
+        
+        // Send verification code to the NEW email address
+        const emailSent = await sendEmailChangeVerification(newEmail, verificationCode);
+        
+        if (!emailSent) {
+            return res.status(500).json({ message: 'Failed to send verification email' });
+        }
+        
+        return res.status(200).json({ 
+            message: 'Verification code sent to your new email',
+            success: true
+        });
+    } catch (error) {
+        console.error('Error requesting email change:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// POST /api/users/:userId/verify-email-change
+router.post('/:userId/verify-email-change', async (req, res) => {
+    const { userId } = req.params;
+    const { newEmail, verificationCode } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    try {
+        // Find the verification token
+        const tokenDoc = await Token.findOne({ 
+            userId,
+            token: verificationCode,
+            type: 'email-change'
+        });
+        
+        if (!tokenDoc) {
+            return res.status(400).json({ message: 'Invalid or expired verification code' });
+        }
+        
+        // Verify the new email matches what was requested
+        if (tokenDoc.metadata?.newEmail !== newEmail) {
+            return res.status(400).json({ message: 'Email mismatch. Please restart the email change process.' });
+        }
+        
+        // Check if code is expired (10 minutes)
+        const now = new Date();
+        const createdAt = new Date(tokenDoc.createdAt);
+        const diffMinutes = Math.floor((now - createdAt) / (1000 * 60));
+        
+        if (diffMinutes > 10) {
+            await Token.deleteOne({ _id: tokenDoc._id });
+            return res.status(400).json({ message: 'Verification code has expired' });
+        }
+        
+        // Update user's email
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        user.email = newEmail;
+        await user.save();
+        
+        // Delete the token
+        await Token.deleteOne({ _id: tokenDoc._id });
+        
+        return res.status(200).json({ 
+            message: 'Email updated successfully',
+            success: true
+        });
+    } catch (error) {
+        console.error('Error verifying email change:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// POST /api/users/validate-email-change
+router.post('/validate-email-change', async (req, res) => {
+  const { userId, currentEmail, newEmail, password } = req.body;
+
+  if (!userId || !currentEmail || !newEmail || !password) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  try {
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Verify current email matches
+    if (user.email !== currentEmail) {
+      return res.status(400).json({ message: 'Current email does not match' });
+    }
+
+    // Check if new email is already in use
+    const existingUser = await User.findOne({ email: newEmail });
+    if (existingUser) {
+      return res.status(400).json({ message: 'This email is already registered with another account' });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Incorrect password' });
+    }
+
+    // If all validations pass
+    return res.status(200).json({ 
+      message: 'Validation successful',
+      success: true
+    });
+  } catch (error) {
+    console.error('Error validating email change:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 

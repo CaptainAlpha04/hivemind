@@ -1,7 +1,6 @@
 import Actor from "../logic/actor.mjs";
 import { GoogleGenAI, Modality } from "@google/genai";
 import dotenv from "dotenv";
-import fs from 'fs';
 import cleanJSON from 'cleanllmjson';
 import Bot from "../../model/bot.mjs"; // Import the Bot model
 import mongoose from "mongoose";
@@ -157,4 +156,9 @@ export async function handleChatRequest(userID, agentID, actorInstance, message)
     return response;
 }
 
+export async function handlePostsRequest(userID, agentID, actorInstance, message) {
+    // Send the message to the chat model and get the response
+    const response = await actorInstance.posts(userID, agentID, message);
+    
+}
 
