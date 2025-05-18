@@ -38,8 +38,7 @@ const storySchema = new mongoose.Schema({
     viewers: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
-    }],
-    // Stories typically expire after 24 hours
+    }],    // Stories typically expire after 24 hours
     expiresAt: {
         type: Date,
         default: function() {
@@ -52,7 +51,6 @@ const storySchema = new mongoose.Schema({
 
 // Create indexes for efficient queries
 storySchema.index({ userId: 1, createdAt: -1 });
-storySchema.index({ expiresAt: 1 });
 
 // Avoid recompiling the model
 const Story = mongoose.models.Story || mongoose.model('Story', storySchema);
