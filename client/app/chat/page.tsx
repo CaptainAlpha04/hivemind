@@ -1,15 +1,125 @@
-import React from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { MessageSquare, Bell, Sparkles, PlusCircle, Search } from "lucide-react";
+'use client';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import ChatMenu from '@/components/chat/ChatMenu';
+import ChatArea from '@/components/chat/ChatArea';
 
-function Page() {
-return (
-    <section className='bg-base-100 min-h-screen w-screen bg-gradient-to-br'>
-    <ChatMenu />
-    </section>
-)
+interface Chat {
+  id: string;
+  name: string;
+  username: string;
+  profilePicture: string;
 }
 
-export default Page
+export default function Page() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const [selectedChat, setSelectedChat] = useState<Chat | undefined>(undefined);
+  const [chats, setChats] = useState<Chat[]>([]);
+
+  // Client-side authentication check
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      console.log('Not authenticated, redirecting from chat page');
+      router.push('/auth/signin?callbackUrl=/chat');
+    } else if (status === 'authenticated' && session?.user?.id) {
+      // Fetch user's conversations
+      fetchUserChats(session.user.id);
+    }
+  }, [status, session, router]);
+
+  const fetchUserChats = async (userId: string) => {
+    try {
+      // Use relative URL
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/chats?userId=${userId}`;
+      console.log('Fetching chats from:', apiUrl);
+      const response = await fetch(apiUrl);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Chats received:', data);
+        
+        // Transform API response to match our Chat interface
+        const formattedChats: Chat[] = data.map((chat: any) => {
+          // Find the participant that is not the current user
+          const otherParticipant = chat.participants?.find((p: any) => p._id !== userId);
+          
+          return {
+            id: chat._id,
+            name: otherParticipant?.name || chat.name || 'Chat',
+            username: otherParticipant?.username || 'user',
+            profilePicture: '/default-avatar.png', // Use default avatar for now
+            hasUnread: chat.lastMessage && 
+              !chat.lastMessage.readBy?.includes(userId) && 
+              chat.lastMessage.senderId !== userId
+          };
+        });
+        
+        setChats(formattedChats);
+      } else {
+        console.error('Failed to fetch chats:', response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching chats:', error);
+    }
+  };
+
+  // Handle chat selection from ChatMenu
+  const handleChatSelect = (chat: Chat) => {
+    setSelectedChat(chat);
+  };
+
+  // Show loading state during authentication check
+  if (status === 'loading') {
+    return (
+      <section className='bg-base-100 min-h-screen w-screen bg-gradient-to-br flex justify-center items-center'>
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-teal-500/50 border-t-teal-500 rounded-full animate-spin mb-4"></div>
+          <p className="text-slate-300">Loading chat...</p>
+        </div>
+      </section>
+    );
+  }
+
+  // Prevent rendering if not authenticated
+  if (status === 'unauthenticated') {
+    return null; // Will redirect in the useEffect
+  }
+
+  // Handle current user profile picture
+  let currentUserProfilePic = session?.user?.image || '/default-avatar.png';
+  
+  // If it's a buffer reference and not a URL, construct the API URL
+  if (session?.user?.id && (!currentUserProfilePic.startsWith('http'))) {
+    currentUserProfilePic = `${process.env.NEXT_PUBLIC_API_URL}/api/users/${session.user.id}/profile-picture`;
+  }
+
+  const currentUser = {
+    id: session?.user?.id || '',
+    username: session?.user?.name || '',
+    profilePicture: currentUserProfilePic,
+  };
+
+  return (
+    <section className='bg-base-100 min-h-screen flex'>
+      {/* Chat menu sidebar */}
+      <div className="w-80 border-r border-base-300">
+        <ChatMenu 
+          onSelectChat={handleChatSelect}
+          userId={currentUser.id}
+          username={currentUser.username}
+          chats={chats}
+        />
+      </div>
+      
+      {/* Chat area main content */}
+      <div className="flex-1">
+        <ChatArea 
+          selectedChat={selectedChat} 
+          currentUser={currentUser} 
+        />
+      </div>
+    </section>
+  );
+}

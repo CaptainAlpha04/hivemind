@@ -3,13 +3,16 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "@/components/ui/Sidebar";
 import Header from "@/components/ui/Header";
+import TrendingPosts from "./Trending";
 import Image from "next/image";
-import { ThumbsUp, MessageSquare, Share2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import PostCard from "./Post";
 
 // Fixed image URL for placeholder
 const FIXED_IMAGE_URL = "/images/human.jpg";
 
 // Type definitions for our data
+// These should be moved to a shared types file
 interface Comment {
   _id: string;
   userId: string;
@@ -17,6 +20,8 @@ interface Comment {
   text: string;
   likes: string[];
   createdAt: string;
+  replies?: Comment[];
+  parentId?: string;
 }
 
 interface Post {
@@ -40,37 +45,35 @@ const stories = [
   { title: "Vacation Time!!!", img: FIXED_IMAGE_URL, user: "Alice" },
 ];
 
-const trendingPosts = [
-  {
-    user: "#captainSparrow",
-    time: "2 days ago",
-    title: "What I usually do when I am not threatened by sea titans and other pirates - MUST READ...",
-    stats: "1.4M Likes   1.2M comments   76k Shares   104M Views",
-  },
-  {
-    user: "#StiffTiffany112",
-    time: "1 week ago",
-    title: "Why AI is NOT the game changing technology of our Generation? A survey by MIT Shocks....",
-    stats: "650k Likes   2.3k comments   342 Shares   21M Views",
-  },
-  {
-    user: "#CyberSherlock",
-    time: "3 days ago",
-    title: "Why J.R.R Tolkien is a better author than George R.R Martin. My hot take.",
-    stats: "10k Likes   68k comments   32k Shares   147k Views",
-  },
-];
-
 export default function MainPage() {
+  const { data: session } = useSession();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState<Record<string, string>>({});
+  const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
+  const [likeLoading, setLikeLoading] = useState<Record<string, boolean>>({});
+  const [animatingLikes, setAnimatingLikes] = useState<Record<string, boolean>>({});
+  const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [commentLikeLoading, setCommentLikeLoading] = useState<Record<string, boolean>>({});
+  const [animatingCommentLikes, setAnimatingCommentLikes] = useState<Record<string, boolean>>({});
+  const [expandedCommentSections, setExpandedCommentSections] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     async function fetchPosts() {
       try {
         setLoading(true);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiUrl}/api/posts`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.user?.accessToken && { 
+              'Authorization': `Bearer ${session.user.accessToken}` 
+            })
+          },
+          credentials: 'include'
+        });
         
         if (!response.ok) {
           throw new Error(`Error fetching posts: ${response.status}`);
@@ -87,7 +90,167 @@ export default function MainPage() {
     }
 
     fetchPosts();
-  }, []);
+  }, [session]); 
+  
+  const toggleComments = (postId: string) => {
+    setExpandedCommentSections(prev => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }));
+  };
+  
+  // Your existing handler functions (which will be passed to PostCard)
+  const handleLikeComment = async (postId: string, commentId: string) => {
+    // Prevent multiple clicks
+    if (commentLikeLoading[commentId]) return;
+    
+    try {
+      setAnimatingCommentLikes(prev => ({ ...prev, [commentId]: true }));
+      setCommentLikeLoading(prev => ({ ...prev, [commentId]: true }));
+      
+      // Find the post and comment
+      const post = posts.find(p => p._id === postId);
+      const comment = post?.comments.find(c => c._id === commentId);
+      
+      if (!post || !comment) {
+        console.error("Post or comment not found");
+        return;
+      }
+      
+      const isLiked = comment.likes.includes(session?.user?.id || '');
+      
+      // Optimistically update UI
+      setPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post._id === postId) {
+            const updatedComments = post.comments.map(c => {
+              if (c._id === commentId) {
+                const updatedLikes = isLiked
+                  ? c.likes.filter(id => id !== session?.user?.id)
+                  : [...c.likes, session?.user?.id || ''];
+                return {...c, likes: updatedLikes};
+              }
+              return c;
+            });
+            
+            return {...post, comments: updatedComments};
+          }
+          return post;
+        })
+      );
+      
+      // Make sure we have a valid API URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      
+      if (!session?.user?.id) {
+        console.error("Cannot like comment: No user ID available");
+        return;
+      }
+      
+      const response = await fetch(`${apiUrl}/api/posts/${postId}/comments/${commentId}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.user?.accessToken && { 
+            'Authorization': `Bearer ${session.user.accessToken}` 
+          })
+        },
+        body: JSON.stringify({ userId: session.user.id }),
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error liking comment: ${response.status}`);
+      }
+      
+      const updatedComment = await response.json();
+      
+      // Update the comment with server response
+      setPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post._id === postId) {
+            const updatedComments = post.comments.map(c => 
+              c._id === commentId ? {...c, likes: updatedComment.likes} : c
+            );
+            
+            return {...post, comments: updatedComments};
+          }
+          return post;
+        })
+      );
+    } catch (err) {
+      console.error("Failed to like comment:", err);
+    } finally {
+      setTimeout(() => {
+        setAnimatingCommentLikes(prev => ({ ...prev, [commentId]: false }));
+        setCommentLikeLoading(prev => ({ ...prev, [commentId]: false }));
+      }, 500);
+    }
+  };
+
+  const handleReplyToComment = async (postId: string, commentId: string, text: string) => {
+    try {
+      // Make sure we have a valid API URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      
+      if (!session?.user?.id) {
+        console.error("Cannot reply to comment: No user ID available");
+        return;
+      }
+      
+      console.log('Replying to comment with text:', text);
+      
+      const response = await fetch(`${apiUrl}/api/posts/${postId}/comments/${commentId}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.user?.accessToken && { 
+            'Authorization': `Bearer ${session.user.accessToken}` 
+          })
+        },
+        body: JSON.stringify({ 
+          userId: session.user.id,
+          text: text,
+          parentId: commentId
+        }),
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error replying to comment: ${response.status}`);
+      }
+      
+      const newReply = await response.json();
+      
+      // Update the post with the new reply
+      setPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post._id === postId) {
+            // Find the parent comment and add reply
+            const updatedComments = post.comments.map(c => {
+              if (c._id === commentId) {
+                const replies = c.replies || [];
+                return {...c, replies: [...replies, newReply]};
+              }
+              return c;
+            });
+            
+            return {...post, comments: updatedComments};
+          }
+          return post;
+        })
+      );
+    } catch (err) {
+      console.error("Failed to reply to comment:", err);
+    }
+  };
+
+  // Helper function for comment likes
+  const hasUserLikedComment = (commentLikes: string[], userId: string | undefined) => {
+    if (!userId) return false;
+    return commentLikes.includes(userId);
+  };
+
 
   // Format post date
   const formatDate = (dateString: string) => {
@@ -119,17 +282,160 @@ export default function MainPage() {
     }
   };
 
+  // Add like functionality
+  const handleLikePost = async (postId: string) => {
+    // Prevent multiple clicks
+    if (likeLoading[postId]) return;
+    
+    try {
+      setAnimatingLikes(prev => ({ ...prev, [postId]: true }));
+      // Prevent multiple submissions
+      setLikeLoading(prev => ({ ...prev, [postId]: true }));
+      
+      const isLiked = hasUserLikedPost(
+        posts.find(p => p._id === postId)?.likes || [], 
+        session?.user?.id
+      );
+      
+      // Optimistically update the UI
+      setPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post._id === postId) {
+            const updatedLikes = isLiked
+              ? post.likes.filter(id => id !== session?.user?.id)
+              : [...post.likes, session?.user?.id || ''];
+              
+            return {...post, likes: updatedLikes};
+          }
+          return post;
+        })
+      );
+
+      // Make sure we have a valid API URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      
+      if (!session?.user?.id) {
+        console.error("Cannot like post: No user ID available");
+        return;
+      }
+
+      const response = await fetch(`${apiUrl}/api/posts/${postId}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add Authorization header if session exists
+          ...(session?.user?.accessToken && { 
+            'Authorization': `Bearer ${session.user.accessToken}` 
+          })
+        },
+        body: JSON.stringify({ userId: session.user.id }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error liking post: ${response.status}`);
+      }
+
+      const updatedPost = await response.json();
+      
+      // Update the posts array with the updated post
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post._id === postId ? {...post, likes: updatedPost.likes} : post
+        )
+      );
+    } catch (err) {
+      console.error("Failed to like post:", err);
+
+       // Revert the optimistic update on error
+      if (session?.user?.id) {
+        setPosts(prevPosts => [...prevPosts]);
+      }
+    } finally {
+      // Clear the loading state
+      // Use a timeout to allow the animation to finish
+      setTimeout(() => {
+        setAnimatingLikes(prev => ({ ...prev, [postId]: false }));
+        setLikeLoading(prev => ({ ...prev, [postId]: false }));
+      }, 500);
+    }
+  };
+
+  // Add comment functionality
+  const handleAddComment = async (postId: string, text: string) => {
+    if (!text.trim()) return;
+    if (commentLoading[postId]) return;
+    
+    try {
+      setCommentLoading(prev => ({ ...prev, [postId]: true }));
+      
+      // Make sure we have a valid API URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      
+       // Check if we have a user ID
+      if (!session?.user?.id) {
+        console.error("Cannot comment on post: No user ID available");
+        return;
+      }
+
+      const response = await fetch(`${apiUrl}/api/posts/${postId}/comment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add Authorization header if session exists
+          ...(session?.user?.accessToken && { 
+            'Authorization': `Bearer ${session.user.accessToken}` 
+          })
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          userId: session.user.id,
+          text: text }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error adding comment: ${response.status}`);
+      }
+
+      const newComment = await response.json();
+      
+      // Update the posts array with the new comment
+      setPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post._id === postId) {
+            return {
+              ...post,
+              comments: [...post.comments, newComment]
+            };
+          }
+          return post;
+        })
+      );
+      
+      // Clear the comment input
+      setCommentText(prev => ({ ...prev, [postId]: '' }));
+    } catch (err) {
+      console.error("Failed to add comment:", err);
+    } finally {
+      setCommentLoading(prev => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  // A helper function to check if user has liked a post
+  const hasUserLikedPost = (postLikes: string[], userId: string | undefined) => {
+    if (!userId) return false;
+    return postLikes.includes(userId);
+  };
+
   return (
     <div className="flex min-h-screen bg-base-200">
-      {/* Header and Sidebar components stay the same */}
       <Header />
       <Sidebar />
       
-      {/* Main Content */}
       <main className="flex-1 p-8 flex flex-col gap-6 ml-[280px] mt-[70px]">
         {/* Stories */}
         <section className="mb-6">
-          <h2 className="text-accent font-bold text-xl mb-4">Your Stories</h2>
+          <h2 className="text-primary font-bold text-xl mb-4">Your Stories</h2>
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
             {stories.map((story) => (
               <div key={story.title} className="card w-[200px] h-[120px] bg-base-300 rounded-2xl overflow-hidden flex-shrink-0 relative">
@@ -146,7 +452,7 @@ export default function MainPage() {
                 <div className="absolute bottom-2 left-3 right-[60px] text-base-content font-semibold truncate text-shadow">
                   {story.title}
                 </div>
-                <div className="absolute bottom-2 right-3 text-accent font-semibold text-sm max-w-[50px] text-right truncate">
+                <div className="absolute bottom-2 right-3 text-primary font-semibold text-sm max-w-[50px] text-right truncate">
                   {story.user}
                 </div>
               </div>
@@ -154,20 +460,19 @@ export default function MainPage() {
           </div>
         </section>
         
-        {/* Content Layout - Feed and Trending */}
         <div className="flex gap-6 relative">
           {/* Main Feed */}
           <section className="flex-[2] flex flex-col gap-6 max-w-[calc(100%-372px)]">
             {loading ? (
               <div className="card bg-base-300 rounded-2xl p-6 min-h-[200px] flex justify-center items-center">
-                <span className="loading loading-spinner loading-lg text-accent"></span>
+                <span className="loading loading-spinner loading-lg text-primary"></span>
               </div>
             ) : error ? (
               <div className="card bg-base-300 rounded-2xl p-6 min-h-[200px] flex justify-center items-center">
                 <div className="text-red-400 text-center">
                   <p className="font-bold">Error</p>
                   <p className="mt-2">{error}</p>
-                  <button className="btn btn-sm btn-accent mt-4" onClick={() => window.location.reload()}>
+                  <button className="btn btn-sm btn-primary mt-4" onClick={() => window.location.reload()}>
                     Try Again
                   </button>
                 </div>
@@ -177,62 +482,37 @@ export default function MainPage() {
                 <p className="text-base-content text-center">No posts found</p>
               </div>
             ) : (
+              // Use the PostCard component for each post
               posts.map((post) => (
-                <div key={post._id} className="card bg-base-300 rounded-2xl p-6">
-                  <div className="mb-3">
-                    <span className="text-base-content font-bold text-lg">u/{post.username}</span>
-                    <span className="text-gray-400 font-normal text-sm ml-2">• {formatDate(post.createdAt)}</span>
-                  </div>
-                  <h3 className="font-bold text-xl text-base-content mb-4">{post.heading}</h3>
-                  <div className="text-base-content/80 mb-4">{post.content}</div>
-                  {post.images && post.images.length > 0 && (
-                    <figure className="w-full mb-4">
-                      <img 
-                        src={post.images[0].data ? 
-                          `data:${post.images[0].contentType};base64,${post.images[0].data}` :
-                          FIXED_IMAGE_URL
-                        }
-                        alt={post.heading}
-                        className="w-full rounded-xl object-cover max-h-[500px]"
-                      />
-                    </figure>
-                  )}
-                  <div className="flex gap-6 text-gray-400 font-medium text-base mt-4">
-                    <div className="badge badge-ghost gap-2">
-                      <ThumbsUp size={16} /> {formatNumber(post.likes.length)} likes
-                    </div>
-                    <div className="badge badge-ghost gap-2">
-                      <MessageSquare size={16} /> {formatNumber(post.comments.length)} comments
-                    </div>
-                    <div className="badge badge-ghost gap-2">
-                      <Share2 size={16} /> 0 shares
-                    </div>
-                  </div>
-                </div>
+                <PostCard
+                  key={post._id}
+                  post={post}
+                  formatDate={formatDate}
+                  formatNumber={formatNumber}
+                  onLike={handleLikePost}
+                  onComment={handleAddComment}
+                  onLikeComment={handleLikeComment}
+                  onReplyToComment={handleReplyToComment}
+                  likeLoading={likeLoading}
+                  commentLoading={commentLoading}
+                  animatingLikes={animatingLikes}
+                  commentLikeLoading={commentLikeLoading}
+                  animatingCommentLikes={animatingCommentLikes}
+                  expandedCommentSections={expandedCommentSections}
+                  toggleComments={toggleComments}
+                />
               ))
-            )}
-            
-            {/* Fallback static posts if needed */}
-            {!loading && !error && posts.length === 0 && (
-              <div className="card bg-base-300 rounded-2xl p-6 min-h-[200px] text-center">
-                <p className="text-base-content/60">No posts found. Server might be down or no posts exist yet.</p>
-              </div>
             )}
           </section>
           
           {/* Trending Posts */}
-          <aside className="sticky top-[102px] self-start w-[340px] card bg-base-300 rounded-2xl p-6 max-h-[calc(100vh-150px)] overflow-auto scrollbar-hide">
-            <h2 className="text-accent font-bold text-xl mb-4">Trending Posts</h2>
-            {trendingPosts.map((post) => (
-              <div key={post.title} className="mb-6">
-                <div className="text-base-content font-semibold">
-                  {post.user} <span className="text-gray-400 font-normal text-xs ml-2">{post.time}</span>
-                </div>
-                <div className="text-base-content font-medium text-sm my-2">{post.title}</div>
-                <div className="text-gray-400 font-normal text-xs">{post.stats}</div>
-              </div>
-            ))}
-          </aside>
+           <TrendingPosts 
+            posts={posts}
+            loading={loading}
+            error={error}
+            formatNumber={formatNumber}
+            formatDate={formatDate}
+          />
         </div>
       </main>
     </div>

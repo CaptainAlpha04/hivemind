@@ -21,9 +21,6 @@ const upload = multer({ storage: storage, fileFilter: fileFilter });
 // POST /api/posts - Create a new post
 // Use upload.array('images') middleware to handle multiple file uploads with field name 'images'
 router.post('/', upload.array('images', 5), async (req, res) => { // userId will be passed in req.body instead of relying on auth session
-    // const session = req.auth; // Removed: No longer relying on session populated by auth middleware for userId
-    // const userIdFromAuth = session?.user?.id; // Removed: userId will come from req.body
-
     const { heading, content, visibility, userId } = req.body; // Destructure userId directly from req.body
     const imageFiles = req.files; // Get files from req.files added by multer
 
@@ -113,14 +110,39 @@ router.post('/', upload.array('images', 5), async (req, res) => { // userId will
     }
 });
 
-// POST /api/posts/:postId/like - Like/Unlike a post
+// Update the like post route
 router.post('/:postId/like', async (req, res) => {
-    const session = req.auth;
-    const userId = session?.user?.id;
+    // Extract userId from either auth session or from request body/header
+    let userId;
     
-    // Our middleware already enforces authentication, but double check
+    if (req.auth?.user?.id) {
+        userId = req.auth.user.id;
+    } else if (req.headers.authorization) {
+        // Extract token from Authorization header if available
+        // Parse JWT token or handle your auth mechanism here
+        // This is a placeholder - implement according to your auth system
+        try {
+            const token = req.headers.authorization.split(' ')[1];
+            // Decode and verify token here
+            // userId = decoded.sub or similar
+        } catch (error) {
+            console.error('Invalid token format:', error);
+        }
+    } 
+    
+    // Fallback to cookies or user object in session if token extraction failed
+    if (!userId && req.user?.id) {
+        userId = req.user.id;
+    }
+    
+    // Last resort - check if userId was sent in body
+    if (!userId && req.body.userId && mongoose.Types.ObjectId.isValid(req.body.userId)) {
+        userId = req.body.userId;
+    }
+
+    // Check if we have a valid userId by now
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid user ID format' });
+        return res.status(400).json({ message: 'Invalid or missing user ID' });
     }
 
     const { postId } = req.params;
@@ -137,7 +159,7 @@ router.post('/:postId/like', async (req, res) => {
         }
 
         // Check if user already liked the post
-        const likeIndex = post.likes.findIndex(likeId => likeId.equals(userId));
+        const likeIndex = post.likes.findIndex(likeId => likeId.toString() === userId.toString());
 
         if (likeIndex > -1) {
             // User already liked, so unlike
@@ -149,11 +171,13 @@ router.post('/:postId/like', async (req, res) => {
 
         await post.save();
 
-        // Return updated like count or the updated post (without image data)
+        // Return updated post (without image data)
         const postResponse = post.toObject();
-        delete postResponse.image;
-        if (post.image && post.image.data) {
-             postResponse.hasImage = true;
+        if (postResponse.images) {
+            postResponse.images = postResponse.images.map(img => ({ 
+                contentType: img.contentType, 
+                _id: img._id 
+            }));
         }
 
         return res.status(200).json(postResponse);
@@ -164,14 +188,61 @@ router.post('/:postId/like', async (req, res) => {
     }
 });
 
-// POST /api/posts/:postId/comment - Add a comment to a post
-router.post('/:postId/comment', async (req, res) => {
-    const session = req.auth;
-    const userId = session?.user?.id;
-    
-    // Our middleware already enforces authentication
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+// Get Posts for a specific user
+router.get('/user/:userId', async (req, res) => {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    try {
+        const posts = await Post.find({ userId: userId })
+            .sort({ createdAt: -1 })
+            .lean(); // Convert to plain JavaScript objects
+        const filteredPosts = posts.map(post => ({
+            ...post,
+            hasImage: !!(post.image && post.image.contentType) // Check if image exists
+        }));
+        return res.status(200).json(filteredPosts);
+    } catch (error) {
+        console.error('Failed to fetch user posts:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
+// Apply similar changes to the comment endpoint
+router.post('/:postId/comment', async (req, res) => {
+    // Extract userId from either auth session or from request body/header
+    let userId;
+    
+    if (req.auth?.user?.id) {
+        userId = req.auth.user.id;
+    } else if (req.headers.authorization) {
+        // Extract token from Authorization header if available
+        // Parse JWT token or handle your auth mechanism here
+        // This is a placeholder - implement according to your auth system
+        try {
+            const token = req.headers.authorization.split(' ')[1];
+            // Decode and verify token here
+            // userId = decoded.sub or similar
+        } catch (error) {
+            console.error('Invalid token format:', error);
+        }
+    } 
+    
+    // Fallback to cookies or user object in session if token extraction failed
+    if (!userId && req.user?.id) {
+        userId = req.user.id;
+    }
+    
+    // Last resort - check if userId was sent in body
+    if (!userId && req.body.userId && mongoose.Types.ObjectId.isValid(req.body.userId)) {
+        userId = req.body.userId;
+    }
+
+    // Check if we have a valid userId by now
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid or missing user ID' });
     }
 
     const { postId } = req.params;
@@ -200,9 +271,9 @@ router.post('/:postId/comment', async (req, res) => {
 
         const newComment = {
             userId: userId,
-            username: user.username, // Add username
+            username: user.username,
             text: text.trim(),
-            likes: [], // Initialize likes array
+            likes: [],
             createdAt: new Date()
         };
 
@@ -220,14 +291,38 @@ router.post('/:postId/comment', async (req, res) => {
     }
 });
 
+
+
 // POST /api/posts/:postId/comments/:commentId/like - Like/Unlike a comment
 router.post('/:postId/comments/:commentId/like', async (req, res) => {
-    const session = req.auth;
-    const userId = session?.user?.id;
+    // Extract userId from either auth session or from request body/header
+    let userId;
     
-    // Our auth middleware already verified authentication
+    if (req.auth?.user?.id) {
+        userId = req.auth.user.id;
+    } else if (req.headers.authorization) {
+        // Extract token from Authorization header if available
+        try {
+            const token = req.headers.authorization.split(' ')[1];
+            // Decode and verify token here
+        } catch (error) {
+            console.error('Invalid token format:', error);
+        }
+    }
+    
+    // Fallback to cookies or user object in session if token extraction failed
+    if (!userId && req.user?.id) {
+        userId = req.user.id;
+    }
+    
+    // Last resort - check if userId was sent in body
+    if (!userId && req.body.userId && mongoose.Types.ObjectId.isValid(req.body.userId)) {
+        userId = req.body.userId;
+    }
+
+    // Check if we have a valid userId by now
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid user ID format' });
+        return res.status(400).json({ message: 'Invalid or missing user ID' });
     }
 
     const { postId, commentId } = req.params;
@@ -251,7 +346,7 @@ router.post('/:postId/comments/:commentId/like', async (req, res) => {
         }
 
         // Check if user already liked the comment
-        const likeIndex = comment.likes.findIndex(likeId => likeId.equals(userId));
+        const likeIndex = comment.likes.findIndex(likeId => likeId.toString() === userId.toString());
 
         if (likeIndex > -1) {
             // User already liked, so unlike
@@ -271,6 +366,166 @@ router.post('/:postId/comments/:commentId/like', async (req, res) => {
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 });
+// Add this route after your existing comment routes
+
+// POST /api/posts/:postId/comments/:commentId/reply - Reply to a comment
+router.post('/:postId/comments/:commentId/reply', async (req, res) => {
+    // Extract userId from either auth session or from request body/header
+    let userId;
+    
+    if (req.auth?.user?.id) {
+        userId = req.auth.user.id;
+    } else if (req.headers.authorization) {
+        // Extract token from Authorization header if available
+        try {
+            const token = req.headers.authorization.split(' ')[1];
+            // Decode and verify token here
+        } catch (error) {
+            console.error('Invalid token format:', error);
+        }
+    } 
+    
+    // Fallback to cookies or user object in session if token extraction failed
+    if (!userId && req.user?.id) {
+        userId = req.user.id;
+    }
+    
+    // Last resort - check if userId was sent in body
+    if (!userId && req.body.userId && mongoose.Types.ObjectId.isValid(req.body.userId)) {
+        userId = req.body.userId;
+    }
+
+    // Check if we have a valid userId by now
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid or missing user ID' });
+    }
+
+    const { postId, commentId } = req.params;
+    const { text } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(postId) || !mongoose.Types.ObjectId.isValid(commentId)) {
+        return res.status(400).json({ message: 'Invalid post or comment ID format' });
+    }
+
+    if (!text || typeof text !== 'string' || text.trim() === '') {
+        return res.status(400).json({ message: 'Reply text is required' });
+    }
+
+    try {
+        // Fetch user to get username for denormalization
+        const user = await User.findById(userId).select('username').lean();
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const post = await Post.findById(postId);
+
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        // Find the parent comment
+        const parentComment = post.comments.id(commentId);
+
+        if (!parentComment) {
+            return res.status(404).json({ message: 'Parent comment not found' });
+        }
+
+        // Create the reply object
+        const newReply = {
+            _id: new mongoose.Types.ObjectId(), // Generate a new ID for the reply
+            userId: userId,
+            username: user.username,
+            text: text.trim(),
+            likes: [],
+            createdAt: new Date(),
+            parentId: commentId // Reference to parent comment
+        };
+
+        // Initialize replies array if it doesn't exist
+        if (!parentComment.replies) {
+            parentComment.replies = [];
+        }
+
+        // Add the reply to the parent comment
+        parentComment.replies.push(newReply);
+
+        // Save the updated post
+        await post.save();
+
+        // Return the newly added reply
+        return res.status(201).json(newReply);
+
+    } catch (error) {
+        console.error('Failed to add reply to comment:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// Add a route to like/unlike a reply to a comment
+router.post('/:postId/comments/:commentId/replies/:replyId/like', async (req, res) => {
+    // Extract userId from either auth session or from request body
+    let userId;
+    
+    if (req.auth?.user?.id) {
+        userId = req.auth.user.id;
+    } else if (req.body.userId && mongoose.Types.ObjectId.isValid(req.body.userId)) {
+        userId = req.body.userId;
+    } else {
+        return res.status(400).json({ message: 'Invalid or missing user ID' });
+    }
+
+    const { postId, commentId, replyId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(postId) || 
+        !mongoose.Types.ObjectId.isValid(commentId) ||
+        !mongoose.Types.ObjectId.isValid(replyId)) {
+        return res.status(400).json({ message: 'Invalid ID format' });
+    }
+
+    try {
+        const post = await Post.findById(postId);
+
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        // Find the parent comment
+        const comment = post.comments.id(commentId);
+
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        // Find the reply
+        const reply = comment.replies.find(r => r._id.toString() === replyId);
+
+        if (!reply) {
+            return res.status(404).json({ message: 'Reply not found' });
+        }
+
+        // Check if user already liked the reply
+        const likeIndex = reply.likes.findIndex(likeId => likeId.toString() === userId.toString());
+
+        if (likeIndex > -1) {
+            // User already liked, so unlike
+            reply.likes.splice(likeIndex, 1);
+        } else {
+            // User hasn't liked, so like
+            reply.likes.push(userId);
+        }
+
+        await post.save();
+
+        // Return the updated reply
+        return res.status(200).json(reply);
+
+    } catch (error) {
+        console.error('Failed to like/unlike reply:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
 
 // GET /api/posts - Fetch posts (example, implement pagination/filtering later)
 router.get('/', async (req, res) => {
@@ -336,6 +591,34 @@ router.get('/', async (req, res) => {
         return res.status(200).json(filteredPosts);
     } catch (error) {
         console.error('Failed to fetch posts:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// GET /api/posts/:postId - Fetch a single post by ID
+router.get('/:postId', async (req, res) => {
+    const { postId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+        return res.status(400).json({ message: 'Invalid post ID format' });
+    }
+
+    try {
+        const post = await Post.findById(postId).select('-image.data').lean();
+
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        // Check if the user is blocked by the post owner
+        const session = req.auth;
+        if (session?.user?.id && post.userId.equals(session.user.id)) {
+            return res.status(403).json({ message: 'You cannot view your own post' });
+        }
+
+        return res.status(200).json(post);
+    } catch (error) {
+        console.error('Failed to fetch post:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 });

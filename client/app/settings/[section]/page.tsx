@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+import { useParams } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import ProfileSettings from '@/components/settings/ProfileSettings';
@@ -14,7 +16,9 @@ interface SettingsPageProps {
 }
 
 export default function SettingsPage({ params }: SettingsPageProps) {
-  const { section } = params;
+  // Remove the duplicate params access using useParams
+  // The section is already provided via props.params in Next.js App Router
+  const section = params.section as string;
   const [isLoading, setIsLoading] = useState(true);
 
   // Map of valid sections to their components
@@ -51,4 +55,3 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     </div>
   );
 }
- 

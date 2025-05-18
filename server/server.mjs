@@ -68,6 +68,7 @@ app.get('/', async (req, res) => {
 });
 
 // Using the routes
+// await generateActorPersona(); // Generate actor persona on server start
 app.use('/api/posts', postRoutes); // Protected route - authentication required
 app.use('/api/users', userRoutes); // Some endpoints may be public
 app.use('/api/communities', communityRoutes); // Community routes
@@ -77,4 +78,4 @@ app.use('/api/recommendations', recommendationRoutes); // Recommendation routes
 // Starting the server
 app.listen(port, () => {
     console.log(`Server is running on ${port}...`);
-});
+}); 

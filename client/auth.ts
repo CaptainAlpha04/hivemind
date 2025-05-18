@@ -104,7 +104,7 @@ export const authOptions = {
     },
     async redirect({ url, baseUrl }) {
       // Always redirect to /mainpage after sign-in
-      return baseUrl + "/mainpage";
+      return baseUrl + "/home";
     },
   },
   session: {

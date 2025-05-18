@@ -2,8 +2,12 @@
 
 import { useState } from 'react';
 import { User, Mail, Lock, Eye, EyeOff, AlertCircle, Check } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 export default function AccountSettings() {
+  const { data: session, status } = useSession();
+  const [loading, setLoading] = useState(true);
+
   const [emailForm, setEmailForm] = useState({
     currentEmail: '',
     newEmail: '',
@@ -24,6 +28,7 @@ export default function AccountSettings() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [passwordError, setPasswordError] = useState('');
   
   const validatePassword = (password: string) => {
     let strength = 0;
@@ -36,14 +41,61 @@ export default function AccountSettings() {
 
   const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setEmailSuccess(true);
-    setTimeout(() => setEmailSuccess(false), 3000);
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${session?.user?.id}/email`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        currentEmail: emailForm.currentEmail,
+        email: emailForm.newEmail,
+      }),
+    })
+
+    if (res.ok) {
+      setEmailSuccess(true);
+      setTimeout(() => setEmailSuccess(false), 3000);
+    } else {
+      console.error('Failed to update email');
+    }
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setPasswordSuccess(true);
-    setTimeout(() => setPasswordSuccess(false), 3000);
+    setPasswordError('');
+    
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${session?.user?.id}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+          confirmPassword: passwordForm.confirmPassword,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setPasswordSuccess(true);
+        // Reset form
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        setPasswordStrength(0);
+        setTimeout(() => setPasswordSuccess(false), 3000);
+      } else {
+        setPasswordError(data.message || 'Failed to update password');
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      setPasswordError('An error occurred while updating your password');
+    }
   };
 
   const handleNewPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,6 +103,41 @@ export default function AccountSettings() {
     setPasswordForm({ ...passwordForm, newPassword });
     validatePassword(newPassword);
   };
+
+  const getUserData = async () => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    // Fetch user data from the server
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`, {
+      method: 'GET',
+      headers: {
+      'Content-Type': 'application/json',
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log('User data:', data);
+      setEmailForm({ ...emailForm, currentEmail: data.email });
+      setPasswordForm({ ...passwordForm, currentPassword: data.password });
+    } else {
+      console.error('Failed to fetch user data');
+    }
+  }
+
+  if (status === 'authenticated' && loading) {
+    getUserData();
+    setLoading(false);
+  }
+
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="loader"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white p-4 md:p-8">
@@ -260,6 +347,13 @@ export default function AccountSettings() {
                 </div>
               )}
             </div>
+            
+            {passwordError && (
+              <div className="flex items-center gap-1 text-red-400 text-sm mt-2">
+                <AlertCircle className="w-4 h-4" />
+                <span>{passwordError}</span>
+              </div>
+            )}
             
             <div className="flex justify-end pt-2">
               <button

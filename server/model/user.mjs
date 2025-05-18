@@ -22,6 +22,12 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    bannerColor: {
+        type: String,
+        default: 'bg-cyan-500', // Default to cyan
+        // Make it an enum
+        enum: ['bg-cyan-500', 'bg-orange-500', 'bg-pink-500', 'bg-green-500', 'bg-violet-500']
+    },
     password: { 
         type: String,
         required: function() {

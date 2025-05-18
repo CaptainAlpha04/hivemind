@@ -108,12 +108,12 @@ export default function CreateHivePage() {
     formData.append('rules', JSON.stringify(filteredRules));
     
     if (session?.user?.id) {
-      formData.append('creator', session.user.id);
+      formData.append('userId', session.user.id);
     } else {
       console.error('User ID not found in session.');
       alert('Your session is missing a user ID. Cannot create hive.');
       return;
-    }
+    } 
 
     if (profilePic) {
       formData.append('profilePicture', profilePic);
