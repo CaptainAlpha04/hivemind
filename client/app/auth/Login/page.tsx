@@ -22,11 +22,12 @@ export default function LoginPage() {
   // Check if user was redirected after registration or password reset
   const justRegistered = searchParams.get('registered') === 'true';
   const passwordReset = searchParams.get('reset') === 'true';
+  const message = searchParams.get('message');
   
   // Clear any error messages when inputs change
   useEffect(() => {
     if (error) setError('');
-  }, [email, password]);
+  }, [email, password, error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,6 +149,18 @@ export default function LoginPage() {
               {error && (
                 <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-md">
                   <p className="text-red-300 text-sm">{error}</p>
+                </div>
+              )}
+
+              {/* Message display */}
+              {message && (
+                <div className="mb-6 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-md">
+                  <p className="text-emerald-400 text-sm flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12c0 5.52 4.48 10 10 10s10-4.48 10-10S17.52 2 12 2zm-1 17.93c-.29 0-.58-.03-.86-.08-.24-.04-.48-.1-.71-.17-.22-.07-.43-.17-.64-.29-.2-.11-.39-.24-.57-.39-.17-.15-.33-.31-.48-.48-.14-.17-.27-.35-.39-.54-.11-.19-.21-.39-.29-.59-.08-.2-.14-.41-.17-.62-.03-.28-.05-.56-.05-.84s.02-.56.05-.84c.03-.21.09-.42.17-.62.08-.2.18-.4.29-.59.12-.19.25-.37.39-.54.15-.17.32-.34.48-.48.18-.15.37-.28.57-.39.21-.09.43-.16.64-.22.23-.06.46-.09.69-.09.24 0 .47.03.71.09.22.06.43.13.64.22.2.09.39.24.57.39.17.15.33.31.48.48.14.17.27.35.39.54.11.19.21.39.29.59.08.2.14.41.17.62.03.28.05.56.05.84s-.02.56-.05.84c-.03.21-.09.42-.17.62-.08.2-.18.4-.29.59-.12.19-.25.37-.39.54-.15.17-.32.34-.48.48-.18.15-.37.28-.57.39-.21.09-.43.16-.64.22-.24.06-.47.09-.71.09z" fill="currentColor"/>
+                    </svg>
+                    {message}
+                  </p>
                 </div>
               )}
 

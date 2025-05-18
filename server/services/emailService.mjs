@@ -116,3 +116,32 @@ export async function sendPasswordResetCode(email, code) {
     return false;
   }
 }
+
+// Send email change verification code
+export async function sendEmailChangeVerification(email, code) {
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"HiveMind" <noreply@hivemind.com>',
+      to: email,
+      subject: 'Verify Your Email Change Request',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #10B981;">Verify Your New Email</h2>
+          <p>Hello,</p>
+          <p>We received a request to change your email address to this one. Please use the following verification code to confirm this change:</p>
+          <div style="margin: 30px 0; text-align: center;">
+            <div style="font-size: 24px; letter-spacing: 5px; font-weight: bold; padding: 20px; background-color: #f3f4f6; border-radius: 5px;">${code}</div>
+          </div>
+          <p>This code will expire in 10 minutes.</p>
+          <p>If you didn't request this code, you can ignore this email.</p>
+          <p>Best regards,<br>The HiveMind Team</p>
+        </div>
+      `,
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error sending email change verification:', error);
+    return false;
+  }
+}

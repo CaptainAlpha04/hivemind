@@ -54,7 +54,7 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account}) {
+    async signIn({ user, account }) {
       // Only handle OAuth providers here
       if (account?.provider === "google") {
         try {
@@ -69,6 +69,15 @@ export const authOptions = {
             })
           });
           
+          // IMPORTANT: Get the database user ID from response
+          if (response.ok) {
+            const data = await response.json();
+            if (data.userId) {
+              // Store the actual database ID from your server
+              user.id = data.userId;
+            }
+          }
+          
           return response.ok;
         } catch (error) {
           console.error("Error syncing OAuth user:", error);
@@ -78,27 +87,23 @@ export const authOptions = {
       return true;
     },
     async jwt({ token, user, account }) {
+      // Initial sign in
       if (user) {
-        token.id = user.id;
-      }
-      // Store the access token if it exists (for OAuth providers)
-      if (account?.access_token) {
-        token.accessToken = account.access_token;
-      }
-      // For credential login, simulate an access token using the session token
-      // This is a simple approach; in a production app, you might want to generate a proper JWT
-      if (!token.accessToken) {
-        token.accessToken = token.jti || `auth-token-${Date.now()}`;
+        // Add user properties to token
+        token.id = user.id; // This will now be your database ID for OAuth users
+        token.email = user.email;
+        token.name = user.name;
+        token.picture = user.image;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
-      }
-      // Include the access token in the session
-      if (token.accessToken) {
-        session.user.accessToken = token.accessToken;
+      if (session.user) {
+        // Transfer data from token to session
+        session.user.id = token.id as string;
+        session.user.email = token.email as string;
+        session.user.name = token.name as string;
+        session.user.image = token.picture as string;
       }
       return session;
     },
