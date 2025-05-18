@@ -71,6 +71,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
+  const [showMobileUserInfo, setShowMobileUserInfo] = useState(false);
 
   // States for post interaction
   const [likeLoading, setLikeLoading] = useState<Record<string, boolean>>({});
@@ -88,7 +89,6 @@ export default function UserProfile({ userId }: UserProfileProps) {
 
  
   useEffect(() => {
-
     const fetchData = async () => {
       setLoading(true);
       console.log("User ID from profile:" + userId)
@@ -346,7 +346,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
 
     setCommentLoading(prev => ({ ...prev, [postId]: true }));
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/comments`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -518,44 +518,44 @@ export default function UserProfile({ userId }: UserProfileProps) {
   return (
     <div className="min-h-screen flex flex-col bg-base-200">
       <Header />
-      <div className="flex mt-[70px]">
+      <div className="flex mt-[-54px] md:mt-[0px]">
         <Sidebar />
-        <main className="flex-1 ml-[280px] pb-8">
+        <main className="flex-1 md:ml-[280px] pb-8 mb-[60px] md:mb-0">
           {/* User Banner */}
           <div className="relative">
-            <div className={`h-48 w-full bg-${bannerColor || 'slate'} relative overflow-hidden`}>
+            <div className={`h-32 md:h-48 w-full bg-${bannerColor || 'slate'} relative overflow-hidden`}>
               <div className="w-full h-full bg-gradient-to-r from-base-300 to-transparent opacity-20"></div>
               <div className="absolute inset-0 bg-gradient-to-t from-base-300 to-transparent opacity-60"></div>
             </div>
 
             {/* User info overlay */}
-            <div className="absolute -bottom-16 left-8 flex items-end">
-              <div className="w-24 h-24 rounded-full border-4 border-base-300 bg-white overflow-hidden">
+            <div className="absolute -bottom-12 md:-bottom-16 left-4 md:left-8 flex items-end">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-base-300 bg-white overflow-hidden">
                 <img 
                   src={profileImageUrl}
                   alt={userData?.name || 'User'} 
                   className="w-full h-full object-cover" 
                 />
               </div>
-              <div className="ml-4 mb-4">
-                <h1 className="text-2xl font-bold text-base-content">{userData?.name}</h1>
-                <p className="text-gray-400 text-sm">@{userData?.username}</p>
+              <div className="ml-3 md:ml-4 mb-2 md:mb-4">
+                <h1 className="text-xl md:text-2xl font-bold text-base-content">{userData?.name}</h1>
+                <p className="text-gray-400 text-xs md:text-sm">@{userData?.username}</p>
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="absolute right-8 bottom-4 flex items-center gap-2">
+            <div className="absolute right-4 md:right-8 bottom-4 flex items-center gap-1 md:gap-2">
               {isCurrentUser ? (
                 <>
                   <Link href="settings/profile"
-                    className="bg-primary text-white hover:bg-primary-focus py-1 px-6 rounded-full font-medium"
+                    className="bg-primary text-white hover:bg-primary-focus py-1 px-3 md:px-6 rounded-full text-sm md:text-base font-medium"
                   >
-                    <Edit size={16} className="mr-2 inline" />
-                    Edit Profile
+                    <Edit size={14} className="md:mr-2 inline" />
+                    <span className="hidden md:inline">Edit Profile</span>
                   </Link>
                   <button className="bg-transparent text-base-content border border-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10"
                   onClick={() => router.push('/settings/account')}>
-                    <Settings size={16} />
+                    <Settings size={14} />
                   </button>
                 </>
               ) : (
@@ -566,62 +566,106 @@ export default function UserProfile({ userId }: UserProfileProps) {
                     className={`${isFollowing 
                       ? 'bg-transparent border border-white text-base-content hover:bg-white/10' 
                       : 'bg-primary text-white hover:bg-primary-focus'
-                    } py-1 px-6 rounded-full font-medium relative`}
+                    } py-1 px-3 md:px-6 rounded-full text-sm md:text-base font-medium relative`}
                   >
                     {followLoading ? (
                       <span className="flex items-center justify-center">
                         <span className="animate-spin h-4 w-4 border-2 border-t-transparent rounded-full mr-2"></span>
-                        {isFollowing ? 'Unfollowing...' : 'Following...'}
+                        <span className="hidden md:inline">{isFollowing ? 'Unfollowing...' : 'Following...'}</span>
                       </span>
                     ) : (
                       isFollowing ? 'Following' : 'Follow'
                     )}
                   </button>
                   <button className="bg-transparent text-base-content border border-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10">
-                    <Bell size={16} />
+                    <Bell size={14} />
                   </button>
                   <button className="bg-transparent text-base-content w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10">
-                    <MoreHorizontal size={16} />
+                    <MoreHorizontal size={14} />
                   </button>
                 </>
               )}
             </div>
           </div>
 
+          {/* Mobile User Stats - Quick view */}
+          <div className="md:hidden px-4 mt-14 mb-4">
+            <div className="flex justify-between items-center">
+              <div className="flex gap-4 items-center">
+                <div className="text-center">
+                  <div className="text-base-content font-semibold">{userPosts.length}</div>
+                  <div className="text-gray-400 text-xs">Posts</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-base-content font-semibold">{userData?.followersCount || 0}</div>
+                  <div className="text-gray-400 text-xs">Followers</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-base-content font-semibold">{userData?.followingCount || 0}</div>
+                  <div className="text-gray-400 text-xs">Following</div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setShowMobileUserInfo(!showMobileUserInfo)} 
+                className="btn btn-sm btn-ghost"
+              >
+                {showMobileUserInfo ? 'Hide Info' : 'More Info'}
+              </button>
+            </div>
+            
+            {/* Mobile User Details Dropdown */}
+            {showMobileUserInfo && (
+              <div className="mt-4 bg-base-100 rounded-xl p-4 text-sm">
+                <div className="mb-3">
+                  <div className="text-gray-400">Joined {userData?.createdAt ? formatDate(userData.createdAt) : 'N/A'}</div>
+                </div>
+                
+                {isCurrentUser && userData?.email && (
+                  <div className="mb-3">
+                    <h3 className="text-base-content font-medium text-sm mb-1">Email</h3>
+                    <p className="text-gray-400">{userData.email}</p>
+                  </div>
+                )}
+                
+                {isCurrentUser && (
+                  <button 
+                    onClick={handleSignOut}
+                    className="w-full bg-error hover:bg-error-content text-white font-medium py-2 rounded-full text-sm flex items-center justify-center gap-2 mt-2"
+                  >
+                    <LogOut size={14} />
+                    Sign Out
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Content area */}
-          <div className="px-8 mt-20 flex gap-6">
+          <div className="px-4 md:px-8 mt-4 md:mt-20 flex flex-col md:flex-row gap-4 md:gap-6">
             {/* Posts Feed */}
-            <div className="flex-[2] max-w-[calc(100%-372px)]">
+            <div className="w-full md:flex-[2] md:max-w-[calc(100%-372px)]">
               {/* Filters */}
-              <div className="bg-base-100 rounded-2xl mb-4 p-2 flex items-center">
+              <div className="bg-base-100 rounded-xl md:rounded-2xl mb-4 p-1.5 md:p-2 flex items-center overflow-x-auto scrollbar-hide justify-evenly md:justify-start">  
                 <button 
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'recent' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
-                  onClick={() => {
-                    console.log("Setting filter to recent");
-                    setActiveFilter('recent');
-                  }}
+                  className={`flex items-center gap-1 px-2 md:px-3 py-1.5 rounded-full text-xs md:text-sm whitespace-nowrap ${activeFilter === 'recent' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
+                  onClick={() => setActiveFilter('recent')}
                 >
-                  <Clock size={14} />
+                  <Clock size={12} className="md:block" />
                   <span>Recent</span>
                 </button>
                 <button 
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'popular' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
-                  onClick={() => {
-                    console.log("Setting filter to popular");
-                    setActiveFilter('popular');
-                  }}
+                  className={`flex items-center gap-1 px-2 md:px-3 py-1.5 rounded-full text-xs md:text-sm whitespace-nowrap ${activeFilter === 'popular' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
+                  onClick={() => setActiveFilter('popular')}
                 >
-                  <Flame size={14} />
+                  <Flame size={12} className="md:block" />
                   <span>Popular</span>
                 </button>
                 <button 
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'top' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
-                  onClick={() => {
-                    console.log("Setting filter to top");
-                    setActiveFilter('top');
-                  }}
+                  className={`flex items-center gap-1 px-2 md:px-3 py-1.5 rounded-full text-xs md:text-sm whitespace-nowrap ${activeFilter === 'top' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
+                  onClick={() => setActiveFilter('top')}
                 >
-                  <TrendingUp size={14} />
+                  <TrendingUp size={12} className="md:block" />
                   <span>Top</span>
                 </button>
               </div>
@@ -650,7 +694,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
                   ))}
                 </div>
               ) : (
-                <div className="bg-base-100 rounded-2xl p-6 text-center">
+                <div className="bg-base-100 rounded-xl md:rounded-2xl p-4 md:p-6 text-center">
                   <p className="text-gray-400">No posts from this user yet.</p>
                   {isCurrentUser && (
                     <button 
@@ -664,7 +708,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
               )}
             </div>
 
-            {/* User Details - Right Sidebar */}
+            {/* User Details - Right Sidebar (Desktop Only) */}
             <aside className="sticky top-[102px] self-start w-[340px] max-h-[calc(100vh-150px)] overflow-y-auto hidden md:block">
               {/* About User */}
               <div className="bg-base-100 rounded-2xl overflow-hidden mb-4">

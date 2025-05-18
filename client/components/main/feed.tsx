@@ -432,13 +432,13 @@ export default function MainPage() {
       <Header />
       <Sidebar />
       
-      <main className="flex-1 p-8 flex flex-col gap-6 ml-[280px] mt-[70px]">
-        {/* Stories */}
-        <section className="mb-6">
-          <h2 className="text-primary font-bold text-xl mb-4">Your Stories</h2>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+      <main className="flex-1 p-4 md:p-8 flex flex-col gap-4 md:gap-6 md:ml-[280px] mt-[56px] md:mt-[70px] mb-[60px] md:mb-0">
+        {/* Stories - Resized for mobile */}
+        <section className="mb-2 md:mb-6">
+          <h2 className="text-primary font-bold text-xl mb-2 md:mb-4 ml-1">Your Stories</h2>
+          <div className="flex gap-2 md:gap-4 overflow-x-auto pb-1 md:pb-2 scrollbar-hide">
             {stories.map((story) => (
-              <div key={story.title} className="card w-[200px] h-[120px] bg-base-300 rounded-2xl overflow-hidden flex-shrink-0 relative">
+              <div key={story.title} className="card w-[75px] md:w-[200px] h-[75px] md:h-[120px] bg-base-300 rounded-full md:rounded-2xl overflow-hidden flex-shrink-0 relative">
                 <figure className="w-full h-full">
                   <Image 
                     src={story.img} 
@@ -449,10 +449,10 @@ export default function MainPage() {
                     layout="responsive"
                   />
                 </figure>
-                <div className="absolute bottom-2 left-3 right-[60px] text-base-content font-semibold truncate text-shadow">
+                <div className="hidden md:block absolute bottom-2 left-3 right-[60px] text-base-content font-semibold truncate text-shadow">
                   {story.title}
                 </div>
-                <div className="absolute bottom-2 right-3 text-primary font-semibold text-sm max-w-[50px] text-right truncate">
+                <div className="hidden md:block absolute bottom-2 right-3 text-primary font-semibold text-sm max-w-[50px] text-right truncate">
                   {story.user}
                 </div>
               </div>
@@ -460,15 +460,15 @@ export default function MainPage() {
           </div>
         </section>
         
-        <div className="flex gap-6 relative">
-          {/* Main Feed */}
-          <section className="flex-[2] flex flex-col gap-6 max-w-[calc(100%-372px)]">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6 relative">
+          {/* Main Feed - Full width on mobile */}
+          <section className="flex-1 flex flex-col gap-4 md:gap-6 md:flex-[2] md:max-w-[calc(100%-372px)]">
             {loading ? (
-              <div className="card bg-base-300 rounded-2xl p-6 min-h-[200px] flex justify-center items-center">
+              <div className="card bg-base-300 rounded-xl md:rounded-2xl p-4 md:p-6 min-h-[200px] flex justify-center items-center">
                 <span className="loading loading-spinner loading-lg text-primary"></span>
               </div>
             ) : error ? (
-              <div className="card bg-base-300 rounded-2xl p-6 min-h-[200px] flex justify-center items-center">
+              <div className="card bg-base-300 rounded-xl md:rounded-2xl p-4 md:p-6 min-h-[200px] flex justify-center items-center">
                 <div className="text-red-400 text-center">
                   <p className="font-bold">Error</p>
                   <p className="mt-2">{error}</p>
@@ -478,7 +478,7 @@ export default function MainPage() {
                 </div>
               </div>
             ) : posts.length === 0 ? (
-              <div className="card bg-base-300 rounded-2xl p-6 min-h-[200px] flex justify-center items-center">
+              <div className="card bg-base-300 rounded-xl md:rounded-2xl p-4 md:p-6 min-h-[200px] flex justify-center items-center">
                 <p className="text-base-content text-center">No posts found</p>
               </div>
             ) : (
@@ -505,14 +505,16 @@ export default function MainPage() {
             )}
           </section>
           
-          {/* Trending Posts */}
-           <TrendingPosts 
-            posts={posts}
-            loading={loading}
-            error={error}
-            formatNumber={formatNumber}
-            formatDate={formatDate}
-          />
+          {/* Trending Posts - Hidden on mobile */}
+          <div className="hidden md:block">
+            <TrendingPosts 
+              posts={posts}
+              loading={loading}
+              error={error}
+              formatNumber={formatNumber}
+              formatDate={formatDate}
+            />
+          </div>
         </div>
       </main>
     </div>

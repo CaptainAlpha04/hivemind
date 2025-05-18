@@ -204,7 +204,7 @@ export default function CreatePostPage() {
   // Show loading state during authentication check or form submission
   if (status === 'loading' || status === 'unauthenticated' || isSubmitting) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-slate-900">
+      <div className="min-h-screen flex flex-col bg-base-100">
         
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center items-center flex flex-col">
@@ -224,14 +224,14 @@ export default function CreatePostPage() {
 
   // Render the page (only when authenticated)
   return (
-    <div className="drawer lg:drawer-open bg-gradient-to-br from-slate-950 to-slate-900">
+    <div className="drawer lg:drawer-open bg-base-200">
       <input id="main-drawer" type="checkbox" className="drawer-toggle" />
       
       <div className="drawer-content flex flex-col min-h-screen">
         <Header />
         <Sidebar />
         <main className="flex-1 flex items-center justify-center p-4 py-12 pt-20">
-          <div className="card w-full max-w-2xl bg-base-200 shadow-xl">
+          <div className="card w-full max-w-2xl bg-base-300 shadow-xl">
             <div className="card-body">
               <div className="flex items-center gap-4 mb-4">
                 <div className="avatar placeholder">
