@@ -90,7 +90,7 @@ export default function MainPage() {
     }
 
     fetchPosts();
-  }, [session]); 
+  }, []); 
   
   const toggleComments = (postId: string) => {
     setExpandedCommentSections(prev => ({

@@ -147,10 +147,10 @@ export async function initializeAgents(agentInstructions) {
     return actorInstance;
 }
 
-export async function handleChatRequest(userID, agentID, actorInstance, message) {
+export async function handleChatRequest(userID, actorInstance, message) {
 
     // Send the message to the chat model and get the response
-    const response = await actorInstance.chat(userID, agentID, message);
+    const response = await actorInstance.chat(userID, message);
     
     // Return the response
     return response;
@@ -162,3 +162,55 @@ export async function handlePostsRequest(userID, agentID, actorInstance, message
     
 }
 
+export async function getBotSummary(botId) {
+  try {
+    // Find the bot by ID in the database
+    const bot = await Bot.findById(botId).lean();
+    
+    if (!bot) {
+      console.error(`Bot with ID ${botId} not found`);
+      return "Bot information not available.";
+    }
+    
+    // Construct a readable paragraph about the bot
+    const summary = `You are ${bot.name}, a ${bot.age}-year-old ${bot.gender} from ${bot.nationality} with ${bot.ethnicity} heritage. 
+    You work as a ${bot.occupation} and have ${bot.education ? `studied ${bot.education}` : 'some education background'}. 
+    With a ${bot.physicalDescription?.build || 'average'} build and ${bot.physicalDescription?.height || 'medium'} height, 
+    you have ${bot.physicalDescription?.hair || 'characteristic'} hair and ${bot.physicalDescription?.eyes || 'expressive'} eyes. 
+    Your personality could be described as ${bot.personalityType || 'unique'}, with key traits including ${Array.isArray(bot.keyPersonalityTraits) ? bot.keyPersonalityTraits.slice(0, 3).join(', ') : bot.keyPersonalityTraits || 'various characteristics'}. 
+    You enjoy ${Array.isArray(bot.hobbies) ? bot.hobbies.slice(0, 2).join(' and ') : bot.hobbies || 'various activities'} and have interests in ${Array.isArray(bot.interests) ? bot.interests.slice(0, 2).join(' and ') : bot.interests || 'several areas'}. 
+    ${bot.briefBackstory ? `In brief, ${bot.briefBackstory.substring(0, 100)}${bot.briefBackstory.length > 100 ? '...' : ''}` : ''}`;
+    
+    // Clean up the text by removing extra whitespace and line breaks
+    return summary.replace(/\s+/g, ' ').trim();
+    
+  } catch (error) {
+    console.error('Error generating bot summary:', error);
+    return "Error retrieving bot information.";
+  }
+}
+
+// This overloaded version takes the bot object directly instead of fetching from database
+export async function getBotSummaryFromObject(bot) {
+  try {
+    if (!bot) {
+      console.error('Bot object not provided');
+      return "Bot information not available.";
+    }
+    
+    // Construct a readable paragraph about the bot
+    const summary = `You are ${bot.name}, a ${bot.age}-year-old ${bot.gender} from ${bot.nationality} with ${bot.ethnicity} heritage. 
+    You work as a ${bot.occupation} and have ${bot.education ? `studied ${bot.education}` : 'some education background'}. 
+    With a ${bot.physicalDescription?.build || 'average'} build and ${bot.physicalDescription?.height || 'medium'} height, 
+    you have ${bot.physicalDescription?.hair || 'characteristic'} hair and ${bot.physicalDescription?.eyes || 'expressive'} eyes. 
+    Your personality could be described as ${bot.personalityType || 'unique'}, with key traits including ${Array.isArray(bot.keyPersonalityTraits) ? bot.keyPersonalityTraits.slice(0, 3).join(', ') : bot.keyPersonalityTraits || 'various characteristics'}. 
+    You enjoy ${Array.isArray(bot.hobbies) ? bot.hobbies.slice(0, 2).join(' and ') : bot.hobbies || 'various activities'} and have interests in ${Array.isArray(bot.interests) ? bot.interests.slice(0, 2).join(' and ') : bot.interests || 'several areas'}. 
+    ${bot.briefBackstory ? `In brief, ${bot.briefBackstory.substring(0, 100)}${bot.briefBackstory.length > 100 ? '...' : ''}` : ''}`;
+    // Clean up the text by removing extra whitespace and line breaks
+    return summary.replace(/\s+/g, ' ').trim();
+    
+  } catch (error) {
+    console.error('Error generating bot summary:', error);
+    return "Error processing bot information.";
+  }
+}

@@ -235,13 +235,13 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
 
   return (
 
-    <div className="h-full flex flex-col bg-base-200">
+    <div className="h-screen flex flex-col bg-base-200">
       {/* Horizontal divider at top */}
       <div className="h-px w-full bg-base-300"></div>
       
       {/* Chat header */}
-      <div className="p-3 border-b border-base-300 flex items-center justify-between bg-base-200">
-        <div className="flex items-center">
+      <div className="p-3 border-b border-base-300 flex items-center justify-between bg-base-300">
+        <div className="flex items-center ml-8">
           <div className="avatar">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-700">
               <Image 
@@ -380,7 +380,7 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
           <input
             type="text"
             placeholder="Message here...."
-            className="input bg-base-300 flex-1 border-0 focus:outline focus:outline-1 focus:outline-gray-500 text-white placeholder-gray-400 rounded-full"
+            className="input bg-base-300 flex-1 border-0 focus:outline-1 focus:outline-gray-500 text-white placeholder-gray-400 rounded-full"
             value={newMessage}
             onChange={handleTyping}
           />

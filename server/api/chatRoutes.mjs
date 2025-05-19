@@ -4,6 +4,7 @@ import multer from 'multer';
 import Message from '../model/message.mjs';
 import Conversation from '../model/conversation.mjs';
 import User from '../model/user.mjs';
+import { getBotSummary, handleChatRequest, initializeAgents } from '../agent/controller/agentController.mjs';
 
 const router = express.Router();
 
@@ -145,7 +146,7 @@ router.post('/messages', upload.single('image'), async (req, res) => {
         if (!conversation) {
             return res.status(404).json({ message: 'Conversation not found or user is not a participant' });
         }
-        
+
         // Get sender info for last message data
         const sender = await User.findById(senderId).select('username').lean();
         
@@ -204,6 +205,49 @@ router.post('/messages', upload.single('image'), async (req, res) => {
         if (messageResponse.image) {
             delete messageResponse.image.data;
             messageResponse.hasImage = true;
+        }
+
+        const bot = conversation.participants.find(participant => participant.isBot);
+        
+        if (bot && bot._id != senderId) {
+
+            // If the sender is not the bot, send the message to the bot
+            const bot_info = getBotSummary(bot._id)
+            const agent = initializeAgents(bot_info);
+            const response = await handleChatRequest(senderId, agent, content);
+            if (response) {
+                // Create message data for bot response
+                const botMessageData = {
+                    conversationId: conversation._id,
+                    senderId: bot._id,
+                    content: response,
+                    readBy: [bot._id] // Mark as read by bot
+                };
+                
+                // Add image if provided
+                if (imageFile) {
+                    botMessageData.image = { 
+                        data: imageFile.buffer, 
+                        contentType: imageFile.mimetype 
+                    };
+                }
+                
+                // Create and save new message
+                const newBotMessage = new Message(botMessageData);
+                await newBotMessage.save();
+
+                // Update conversation with last message data
+                conversation.lastMessage = {
+                    messageId: newBotMessage._id,
+                    senderId: bot._id,
+                    senderUsername: bot.username,
+                    content: response ? response : (imageFile ? 'Image' : ''),
+                    hasImage: !!imageFile,
+                    createdAt: newBotMessage.createdAt
+                };
+                
+                await conversation.save();
+            }
         }
         
         return res.status(201).json(messageResponse);

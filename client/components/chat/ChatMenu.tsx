@@ -95,7 +95,7 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
       };
 
     fetchContacts();
-  }, [userId]);
+  }, []);
 
   // Add a function to fetch latest chats that can be called after sending a message
   const refreshChats = async () => {
@@ -241,7 +241,7 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
 
   return (
 
-    <div className="bg-base-200 h-full flex flex-col text-white">
+    <div className="bg-base-200 h-screen flex flex-col text-white">
       {/* Logo and search bar - fixed position */}
       <div className="px-10 py-3">
         <HiveMindLogo />
@@ -300,7 +300,7 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
         <div className="h-px bg-base-300 mx-4 my-2"></div>
         
         {/* Chats section */}
-        <div className="p-4">
+        {/* <div className="p-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wide">Chats</h3>
           </div>
@@ -331,7 +331,7 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
               </div>
             )}
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );
