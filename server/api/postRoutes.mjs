@@ -532,6 +532,11 @@ router.get('/', async (req, res) => {
     const session = req.auth;
     let currentUserId = null;
     
+    // Get pagination parameters from query string
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    
     // If authenticated, middleware has already validated and converted the ID
     if (session?.user?.id) {
         currentUserId = session.user.id;
@@ -547,6 +552,9 @@ router.get('/', async (req, res) => {
             currentUser = await User.findById(currentUserId).select('followingCount blockedUserIds').lean();
         }
 
+        // Get total count of posts for pagination metadata
+        const totalPosts = await Post.countDocuments(query);
+        
         // Construct the query to filter posts based on visibility
         // This is a simplified version. For true 'followers_only', you'd need to check if post.userId is in currentUser.following
         // and for 'private', only the post owner should see it.
@@ -554,9 +562,10 @@ router.get('/', async (req, res) => {
         
         const posts = await Post.find(query) // Query will be refined below
                                 .sort({ createdAt: -1 })
-                                .limit(20) 
+                                .skip(skip)
+                                .limit(limit) 
                                 .select('-image.data') 
-                                .lean(); 
+                                .lean();
 
         const filteredPosts = posts.filter(post => {
             if (post.visibility === 'public') {
@@ -574,8 +583,7 @@ router.get('/', async (req, res) => {
 
             if (post.visibility === 'private') {
                 return post.userId.equals(currentUserId);
-            }
-            if (post.visibility === 'followers_only') {
+            }            if (post.visibility === 'followers_only') {
                 // This requires knowing if the post.userId is followed by currentUserId.
                 // This check is complex with the current structure and might require a $lookup or client-side filtering after fetching user's following list.
                 // For now, let's assume if the user is logged in, they can see followers_only posts (placeholder logic)
@@ -587,8 +595,21 @@ router.get('/', async (req, res) => {
             ...post,
             hasImage: !!(post.image && post.image.contentType)
         }));
-
-        return res.status(200).json(filteredPosts);
+        
+        // Calculate pagination metadata
+        const totalPages = Math.ceil(totalPosts / limit);
+        const hasMore = page < totalPages;
+        
+        return res.status(200).json({
+            posts: filteredPosts,
+            pagination: {
+                page,
+                limit,
+                totalPosts,
+                totalPages,
+                hasMore
+            }
+        });
     } catch (error) {
         console.error('Failed to fetch posts:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
