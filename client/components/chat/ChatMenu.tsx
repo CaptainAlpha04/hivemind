@@ -240,10 +240,12 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
   );
 
   return (
+
     <div className="bg-base-200 h-full flex flex-col text-white">
       {/* Logo and search bar - fixed position */}
       <div className="px-10 py-3">
         <HiveMindLogo />
+
         <div className="relative">
           <input
             type="text"

@@ -234,6 +234,7 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
   }
 
   return (
+
     <div className="h-full flex flex-col bg-base-200">
       {/* Horizontal divider at top */}
       <div className="h-px w-full bg-base-300"></div>
