@@ -2,8 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose'; // Import Mongoose
+import http from 'http'; // For creating HTTP server for WebSockets
 import { ExpressAuth } from "@auth/express"; // Fixed import to use ExpressAuth instead of Auth
 import { authConfig } from './auth.config.mjs'; // Ensure this path is correct
+import WebSocketService from './services/websocketService.mjs'; // Import WebSocket service
 import postRoutes from './api/postRoutes.mjs'; // Import the new post routes
 import userRoutes from './api/userRoutes.mjs'; // New import for user routes
 import communityRoutes from './api/communityRoutes.mjs'; // Import community routes
@@ -25,6 +27,14 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5000; // Update port to match suggested code
 const mongoURI = process.env.MONGODB_URI;
+
+// Create HTTP server
+const server = http.createServer(app);
+
+// Initialize WebSocket service
+const webSocketService = new WebSocketService(server);
+// Make WebSocket service globally available through the app
+app.set('webSocketService', webSocketService);
 
 // --- Mongoose Connection Setup ---
 if (!mongoURI) {
@@ -78,6 +88,7 @@ app.use('/api/recommendations', recommendationRoutes); // Recommendation routes
 app.use('/api/stories', storyRoutes); // Story routes
 
 // Starting the server
-app.listen(port, () => {
+server.listen(port, () => {
     console.log(`Server is running on ${port}...`);
-}); 
+    console.log(`WebSocket server is also running on the same port`);
+});

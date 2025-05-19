@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { Send, Image as ImageIcon, Paperclip, User, Phone, MoreVertical, Mic } from 'lucide-react';
+import useWebSocket from './useWebSocket'; // Import the WebSocket hook
 
 interface Chat {
   id: string;
@@ -32,12 +33,20 @@ interface Message {
   }>;
 }
 
+interface PaginationMetadata {
+  page: number;
+  limit: number;
+  totalMessages: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
 interface ChatAreaProps {
   selectedChat: Chat | undefined;
   currentUser: User;
 }
 
-  // Generate a consistent color based on username
+// Generate a consistent color based on username
 const getUsernameColor = (username: string) => {
   const colors = [
     'bg-primary', 'bg-secondary', 'bg-accent', 'bg-info',
@@ -58,40 +67,117 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  // Initialize WebSocket connection
+  const { isConnected, lastMessage } = useWebSocket();
 
   // Fetch messages when chat is selected
   useEffect(() => {
     if (selectedChat) {
-      fetchMessages();
+      // Reset pagination when changing chats
+      setPage(1);
+      setHasMore(true);
+      fetchMessages(1);
     } else {
       // Clear messages when no chat is selected
       setMessages([]);
     }
   }, [selectedChat]);
 
-  // Scroll to bottom when messages change
+  // Listen for WebSocket messages
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (lastMessage && lastMessage.type === 'new_message' && 
+        selectedChat && lastMessage.conversationId === selectedChat.id) {
+      
+      // Check if the message already exists in our state
+      const messageExists = messages.some(msg => msg._id === lastMessage.message._id);
+      
+      if (!messageExists) {
+        setMessages(prevMessages => [...prevMessages, lastMessage.message]);
+      }
+    }
+  }, [lastMessage, selectedChat, messages]);
 
+  // Scroll to bottom when messages change or on initial render
+  useEffect(() => {
+    if (page === 1) { // Only auto-scroll for the first page or new messages
+      scrollToBottom();
+    }
+  }, [messages, page]);
+  
+  // Also scroll to bottom after the component has finished loading its messages
+  useEffect(() => {
+    if (!isLoading && page === 1 && messages.length > 0) {
+      // Use a slight delay to ensure the DOM has updated
+      const scrollTimer = setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [isLoading, messages.length, page]);
+  
+  // Handle scroll event to load more messages
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      // If scrolled near to top, load more messages
+      if (container.scrollTop < 100 && hasMore && !loadingMore && !isLoading) {
+        loadMoreMessages();
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [hasMore, loadingMore, isLoading]);
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Try multiple approaches to ensure scrolling works
+    if (messagesEndRef.current) {
+      // Method 1: Use scrollIntoView
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      
+      // Method 2: Directly set scrollTop on the container
+      if (messagesContainerRef.current) {
+        const container = messagesContainerRef.current;
+        container.scrollTop = container.scrollHeight;
+      }
+    }
   };
-
-  const fetchMessages = async () => {
+  const fetchMessages = async (pageNum: number = 1) => {
     if (!selectedChat) return;
     
     setIsLoading(true);
     try {
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${selectedChat.id}/messages?userId=${currentUser.id}`;
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${selectedChat.id}/messages?userId=${currentUser.id}&page=${pageNum}&limit=20`;
       const response = await fetch(apiUrl);
       
       if (response.ok) {
         const data = await response.json();
-        setMessages(data);
+        if (pageNum === 1) {
+          // Replace all messages
+          setMessages(data.messages);
+          
+          // Force scroll to bottom after a slight delay to ensure DOM updates
+          setTimeout(() => {
+            scrollToBottom();
+            // For some chat apps, we need an additional scroll after a longer delay
+            setTimeout(scrollToBottom, 300);
+          }, 50);
+        } else {
+          // Prepend old messages to the beginning of the array
+          // Don't modify the current page view
+          setMessages(prev => [...data.messages, ...prev]);
+        }
+        setHasMore(data.pagination.hasMore);
       } else {
         console.error('Failed to fetch messages:', response.status);
       }
@@ -99,6 +185,43 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
       console.error('Error fetching messages:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const loadMoreMessages = async () => {
+    if (loadingMore || !hasMore || !selectedChat) return;
+    
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    
+    try {
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${selectedChat.id}/messages?userId=${currentUser.id}&page=${nextPage}&limit=20`;
+      const response = await fetch(apiUrl);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Remember the current scroll position
+        const container = messagesContainerRef.current;
+        const scrollHeight = container?.scrollHeight || 0;
+        
+        // Add older messages to the top of the list
+        setMessages(prevMessages => [...data.messages, ...prevMessages]);
+        setPage(nextPage);
+        setHasMore(data.pagination.hasMore);
+        
+        // Restore scroll position after adding messages
+        setTimeout(() => {
+          if (container) {
+            const newScrollPosition = container.scrollHeight - scrollHeight;
+            container.scrollTop = newScrollPosition > 0 ? newScrollPosition : 0;
+          }
+        }, 10);
+      }
+    } catch (error) {
+      console.error('Error loading more messages:', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -127,10 +250,19 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
       });
       
       if (response.ok) {
+        // We'll receive our own message through WebSocket as well
+        // But let's optimistically add it to UI for immediate feedback
         const sentMessage = await response.json();
-        setMessages([...messages, sentMessage]);
+        
+        // Don't append if already exists (could happen with WebSocket)
+        const messageExists = messages.some(msg => msg._id === sentMessage._id);
+        if (!messageExists) {
+          setMessages([...messages, sentMessage]);
+        }
+        
         setNewMessage('');
         setSelectedFile(null);
+        scrollToBottom();
       } else {
         console.error('Failed to send message:', response.status);
       }
@@ -214,7 +346,7 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
   if (!selectedChat) {
     return (
       <div className="h-full flex flex-col items-center justify-center bg-base-200">
-        <div className="text-center max-w-md p-6 rounded-xl  backdrop-blur-sm">
+        <div className="text-center max-w-md p-6 rounded-xl backdrop-blur-sm">
           <div className="flex justify-center mb-6">
             <Image 
               src="https://i.postimg.cc/sfccCSVg/image.png" 
@@ -274,11 +406,28 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
             <MoreVertical size={20} className="text-gray-400" />
           </button>
         </div>
-      </div>
-
-      {/* Messages area - independently scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-base-200 custom-scrollbar">
-        {isLoading ? (
+      </div>      {/* Messages area - independently scrollable */}
+      <div 
+        ref={messagesContainerRef} 
+        className="flex-1 overflow-y-auto p-4 space-y-6 bg-base-200 custom-scrollbar flex flex-col"
+        style={{ display: 'flex', flexDirection: 'column' }}
+      >
+        {/* Loading indicator for pagination at the top */}
+        {loadingMore && (
+          <div className="flex justify-center py-2">
+            <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+          </div>
+        )}
+        
+        {/* No more messages indicator */}
+        {!hasMore && messages.length > 0 && (
+          <div className="text-center py-2 text-xs text-gray-400">
+            No more messages
+          </div>
+        )}
+        
+        {/* Initial loading state */}
+        {isLoading && page === 1 ? (
           <div className="flex justify-center py-8">
             <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
           </div>
@@ -353,10 +502,10 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
               </div>
             );
           })
-        )}
-        <div ref={messagesEndRef} />
+        )}        {/* This empty div serves as an anchor for scrolling to the bottom */}
+        <div ref={messagesEndRef} style={{ marginTop: 'auto' }} />
       </div>
-
+      
       {/* Message input area - fixed at bottom */}
       <div className="border-t border-base-300 p-3 bg-base-200">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">

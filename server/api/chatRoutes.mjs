@@ -56,10 +56,13 @@ router.get('/', async (req, res) => {
     }
 });
 
-// 2. GET /api/chats/:conversationId/messages - Get messages for a conversation
+// 2. GET /api/chats/:conversationId/messages - Get paginated messages for a conversation
 router.get('/:conversationId/messages', async (req, res) => {
     const { conversationId } = req.params;
     const { userId } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
     
     if (!userId) {
         return res.status(400).json({ message: 'Missing userId in query parameters' });
@@ -84,11 +87,18 @@ router.get('/:conversationId/messages', async (req, res) => {
             return res.status(403).json({ message: 'User is not a participant in this conversation' });
         }
         
-        // Get messages for the conversation
+        // Get total message count for pagination info
+        const totalMessages = await Message.countDocuments({
+            conversationId: new mongoose.Types.ObjectId(conversationId)
+        });
+        
+        // Get paginated messages for the conversation
         const messages = await Message.find({
             conversationId: new mongoose.Types.ObjectId(conversationId)
         })
-        .sort({ createdAt: 1 }) // Oldest messages first
+        .sort({ createdAt: -1 }) // Newest messages first for efficient pagination
+        .skip(skip)
+        .limit(limit)
         .populate('senderId', 'username profilePicture')
         .lean();
         
@@ -102,7 +112,23 @@ router.get('/:conversationId/messages', async (req, res) => {
             return msg;
         });
         
-        return res.status(200).json(formattedMessages);
+        // Reverse messages to display in chronological order
+        formattedMessages.reverse();
+        
+        // Calculate pagination metadata
+        const totalPages = Math.ceil(totalMessages / limit);
+        const hasMore = page < totalPages;
+        
+        return res.status(200).json({
+            messages: formattedMessages,
+            pagination: {
+                page,
+                limit,
+                totalMessages,
+                totalPages,
+                hasMore
+            }
+        });
     } catch (error) {
         console.error('Failed to fetch messages:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
@@ -198,9 +224,7 @@ router.post('/messages', upload.single('image'), async (req, res) => {
             createdAt: newMessage.createdAt
         };
         
-        await conversation.save();
-
-        // Return message data (without image binary data)
+        await conversation.save();        // Format message data for response (without image binary data)
         const messageResponse = newMessage.toObject();
         if (messageResponse.image) {
             delete messageResponse.image.data;
@@ -248,6 +272,24 @@ router.post('/messages', upload.single('image'), async (req, res) => {
                 
                 await conversation.save();
             }
+        }
+        
+        // Get WebSocket service to notify participants
+        const webSocketService = req.app.get('webSocketService');
+        
+        // Send real-time notification to all other participants
+        if (webSocketService) {
+            const participantIds = conversation.participants.map(p => p.toString());
+            webSocketService.broadcastToConversation(
+                conversation._id.toString(),
+                participantIds,
+                {
+                    type: 'new_message',
+                    conversationId: conversation._id.toString(),
+                    message: messageResponse
+                },
+                senderId.toString() // Don't send to the sender
+            );
         }
         
         return res.status(201).json(messageResponse);
