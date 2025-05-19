@@ -1,9 +1,10 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import ChatMenu from '@/components/chat/ChatMenu';
 import ChatArea from '@/components/chat/ChatArea';
+import { ArrowLeft } from 'lucide-react';
 
 interface Chat {
   id: string;
@@ -17,6 +18,23 @@ export default function Page() {
   const { data: session, status } = useSession();
   const [selectedChat, setSelectedChat] = useState<Chat | undefined>(undefined);
   const [chats, setChats] = useState<Chat[]>([]);
+  const [isMobileView, setIsMobileView] = useState(false);
+
+  // Check for mobile view on mount and when window resizes
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobileView(window.innerWidth < 768); // 768px is typical md breakpoint
+    };
+    
+    // Check on initial load
+    checkIfMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkIfMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkIfMobile);
+  }, []);
 
   // Client-side authentication check
   useEffect(() => {
@@ -66,9 +84,14 @@ export default function Page() {
   };
 
   // Handle chat selection from ChatMenu
-  const handleChatSelect = (chat: Chat) => {
+  const handleChatSelect = useCallback((chat: Chat) => {
     setSelectedChat(chat);
-  };
+  }, []);
+
+  // Go back to chat list (for mobile view)
+  const handleBackToList = useCallback(() => {
+    setSelectedChat(undefined);
+  }, []);
 
   // Show loading state during authentication check
   if (status === 'loading') {
@@ -101,6 +124,42 @@ export default function Page() {
     profilePicture: currentUserProfilePic,
   };
 
+  // On mobile: show either chat list or chat area, not both
+  if (isMobileView) {
+    return (
+      <section className='bg-base-100 min-h-screen flex flex-col'>
+        {selectedChat ? (
+          // Mobile chat view with back button
+          <>
+            <div className="bg-base-200 p-2 flex items-center">
+              <button 
+                className="btn btn-ghost btn-sm" 
+                onClick={handleBackToList}
+              >
+                <ArrowLeft size={20} />
+                <span className="ml-2">Back</span>
+              </button>
+            </div>
+            <div className="flex-1">
+              <ChatArea selectedChat={selectedChat} currentUser={currentUser} />
+            </div>
+          </>
+        ) : (
+          // Mobile chat list view
+          <div className="flex-1">
+            <ChatMenu 
+              onSelectChat={handleChatSelect}
+              userId={currentUser.id}
+              username={currentUser.username}
+              chats={chats}
+            />
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  // Desktop view: show both sidebar and chat area
   return (
     <section className='bg-base-100 min-h-screen flex'>
       {/* Chat menu sidebar */}

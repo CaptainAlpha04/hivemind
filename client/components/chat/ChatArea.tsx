@@ -196,7 +196,7 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-screen flex flex-col">
       {/* Chat header */}
       <div className="p-4 border-b border-base-300 flex items-center">
         <div className="avatar">

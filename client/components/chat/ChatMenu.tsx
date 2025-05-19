@@ -185,7 +185,7 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
   );
 
   return (
-    <div className="bg-base-200 h-full flex flex-col">
+    <div className="bg-base-200 h-screen flex flex-col">
       {/* Search bar */}
       <div className="p-4">
         <div className="relative">
