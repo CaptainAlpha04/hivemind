@@ -118,9 +118,16 @@ export default function CreateHivePage() {
       return;
     }
 
-    // Check for authentication and access token
-    if (status !== 'authenticated' || !session?.user?.accessToken) {
-      setErrorMessage('You must be logged in to create a hive, or your session is missing an access token');
+    // Only check if authenticated - don't check for access token
+    if (status !== 'authenticated') {
+      setErrorMessage('You must be logged in to create a hive');
+      toast.error('Please log in to create a hive.');
+      return;
+    }
+
+    // Make sure we have a user ID
+    if (!session?.user?.id) {
+      setErrorMessage('Your session is missing a user ID. Cannot create hive.');
       toast.error('Authentication error. Please log in again.');
       return;
     }
