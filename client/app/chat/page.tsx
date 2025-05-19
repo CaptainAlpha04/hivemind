@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import ChatMenu from '@/components/chat/ChatMenu';
 import ChatArea from '@/components/chat/ChatArea';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Link } from 'lucide-react';
 
 interface Chat {
   id: string;
@@ -46,7 +46,7 @@ export default function Page() {
       // Fetch user's conversations
       fetchUserChats(session.user.id);
     }
-  }, [status, session, router]);
+  }, [status, router]);
 
   const fetchUserChats = async (userId: string) => {
     try {
@@ -132,13 +132,12 @@ export default function Page() {
         {selectedChat ? (
           // Mobile chat view with back button
           <>
-            <div className="bg-base-200 p-2 flex items-center">
-              <button 
+            <div className="absolute top-6 left-0">
+              <button  
                 className="btn btn-ghost btn-sm" 
                 onClick={handleBackToList}
               >
                 <ArrowLeft size={20} />
-                <span className="ml-2">Back</span>
               </button>
             </div>
             <div className="flex-1">
@@ -148,6 +147,14 @@ export default function Page() {
         ) : (
           // Mobile chat list view
           <div className="flex-1">
+            <div className="absolute top-6 left-0">
+              <button 
+                className="btn btn-ghost btn-sm" 
+                onClick={() => router.push('/')}
+              >
+                <ArrowLeft size={20} />
+              </button>
+            </div>
             <ChatMenu 
               onSelectChat={handleChatSelect}
               userId={currentUser.id}

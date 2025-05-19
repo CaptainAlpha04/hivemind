@@ -116,7 +116,7 @@ const Sidebar = () => {
     };
 
     fetchCommunities();
-  }, [session]);
+  }, []);
 
   return (
     <>

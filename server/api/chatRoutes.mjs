@@ -4,6 +4,7 @@ import multer from 'multer';
 import Message from '../model/message.mjs';
 import Conversation from '../model/conversation.mjs';
 import User from '../model/user.mjs';
+import { getBotSummary, handleChatRequest, initializeAgents } from '../agent/controller/agentController.mjs';
 
 const router = express.Router();
 
@@ -55,10 +56,13 @@ router.get('/', async (req, res) => {
     }
 });
 
-// 2. GET /api/chats/:conversationId/messages - Get messages for a conversation
+// 2. GET /api/chats/:conversationId/messages - Get paginated messages for a conversation
 router.get('/:conversationId/messages', async (req, res) => {
     const { conversationId } = req.params;
     const { userId } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
     
     if (!userId) {
         return res.status(400).json({ message: 'Missing userId in query parameters' });
@@ -83,11 +87,18 @@ router.get('/:conversationId/messages', async (req, res) => {
             return res.status(403).json({ message: 'User is not a participant in this conversation' });
         }
         
-        // Get messages for the conversation
+        // Get total message count for pagination info
+        const totalMessages = await Message.countDocuments({
+            conversationId: new mongoose.Types.ObjectId(conversationId)
+        });
+        
+        // Get paginated messages for the conversation
         const messages = await Message.find({
             conversationId: new mongoose.Types.ObjectId(conversationId)
         })
-        .sort({ createdAt: 1 }) // Oldest messages first
+        .sort({ createdAt: -1 }) // Newest messages first for efficient pagination
+        .skip(skip)
+        .limit(limit)
         .populate('senderId', 'username profilePicture')
         .lean();
         
@@ -101,7 +112,23 @@ router.get('/:conversationId/messages', async (req, res) => {
             return msg;
         });
         
-        return res.status(200).json(formattedMessages);
+        // Reverse messages to display in chronological order
+        formattedMessages.reverse();
+        
+        // Calculate pagination metadata
+        const totalPages = Math.ceil(totalMessages / limit);
+        const hasMore = page < totalPages;
+        
+        return res.status(200).json({
+            messages: formattedMessages,
+            pagination: {
+                page,
+                limit,
+                totalMessages,
+                totalPages,
+                hasMore
+            }
+        });
     } catch (error) {
         console.error('Failed to fetch messages:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
@@ -145,7 +172,7 @@ router.post('/messages', upload.single('image'), async (req, res) => {
         if (!conversation) {
             return res.status(404).json({ message: 'Conversation not found or user is not a participant' });
         }
-        
+
         // Get sender info for last message data
         const sender = await User.findById(senderId).select('username').lean();
         
@@ -197,13 +224,72 @@ router.post('/messages', upload.single('image'), async (req, res) => {
             createdAt: newMessage.createdAt
         };
         
-        await conversation.save();
-
-        // Return message data (without image binary data)
+        await conversation.save();        // Format message data for response (without image binary data)
         const messageResponse = newMessage.toObject();
         if (messageResponse.image) {
             delete messageResponse.image.data;
             messageResponse.hasImage = true;
+        }
+
+        const bot = conversation.participants.find(participant => participant.isBot);
+        
+        if (bot && bot._id != senderId) {
+
+            // If the sender is not the bot, send the message to the bot
+            const bot_info = getBotSummary(bot._id)
+            const agent = initializeAgents(bot_info);
+            const response = await handleChatRequest(senderId, agent, content);
+            if (response) {
+                // Create message data for bot response
+                const botMessageData = {
+                    conversationId: conversation._id,
+                    senderId: bot._id,
+                    content: response,
+                    readBy: [bot._id] // Mark as read by bot
+                };
+                
+                // Add image if provided
+                if (imageFile) {
+                    botMessageData.image = { 
+                        data: imageFile.buffer, 
+                        contentType: imageFile.mimetype 
+                    };
+                }
+                
+                // Create and save new message
+                const newBotMessage = new Message(botMessageData);
+                await newBotMessage.save();
+
+                // Update conversation with last message data
+                conversation.lastMessage = {
+                    messageId: newBotMessage._id,
+                    senderId: bot._id,
+                    senderUsername: bot.username,
+                    content: response ? response : (imageFile ? 'Image' : ''),
+                    hasImage: !!imageFile,
+                    createdAt: newBotMessage.createdAt
+                };
+                
+                await conversation.save();
+            }
+        }
+        
+        // Get WebSocket service to notify participants
+        const webSocketService = req.app.get('webSocketService');
+        
+        // Send real-time notification to all other participants
+        if (webSocketService) {
+            const participantIds = conversation.participants.map(p => p.toString());
+            webSocketService.broadcastToConversation(
+                conversation._id.toString(),
+                participantIds,
+                {
+                    type: 'new_message',
+                    conversationId: conversation._id.toString(),
+                    message: messageResponse
+                },
+                senderId.toString() // Don't send to the sender
+            );
         }
         
         return res.status(201).json(messageResponse);

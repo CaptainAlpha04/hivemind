@@ -112,6 +112,7 @@ export default function MainPage() {  const { data: session } = useSession();
     }
 
     fetchPosts();
+
   }, [session]);
 
   // Fetch stories from the API
@@ -238,6 +239,7 @@ export default function MainPage() {  const { data: session } = useSession();
       setStoryUploadLoading(false);
     }
   };
+
   
   const toggleComments = (postId: string) => {
     setExpandedCommentSections(prev => ({
