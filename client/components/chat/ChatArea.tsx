@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
-import { Send, Image as ImageIcon, Smile, Paperclip } from 'lucide-react';
+import { Send, Image as ImageIcon, Paperclip, User, Phone, MoreVertical, Mic } from 'lucide-react';
 
 interface Chat {
   id: string;
@@ -36,6 +36,23 @@ interface ChatAreaProps {
   selectedChat: Chat | undefined;
   currentUser: User;
 }
+
+  // Generate a consistent color based on username
+const getUsernameColor = (username: string) => {
+  const colors = [
+    'bg-primary', 'bg-secondary', 'bg-accent', 'bg-info',
+    'bg-success', 'bg-warning', 'bg-error', 'bg-neutral'
+  ];
+  
+  // Simple hash function to generate a consistent index
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+};
 
 const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -132,32 +149,14 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
     fileInputRef.current?.click();
   };
 
-  const handleReaction = async (messageId: string, emoji: string) => {
-    try {
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/messages/${messageId}/react`;
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ emoji, userId: currentUser.id }),
-      });
-      
-      if (response.ok) {
-        const updatedMessage = await response.json();
-        // Update the specific message in our messages array
-        setMessages(messages.map(msg => 
-          msg._id === updatedMessage._id ? updatedMessage : msg
-        ));
-      }
-    } catch (error) {
-      console.error('Error adding reaction:', error);
-    }
-  };
-
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Handle input change
+  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
   };
 
   // Determine if a message is from the current user
@@ -179,115 +178,177 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
   // Get sender profile pic URL
   const getSenderProfilePic = (message: Message) => {
     if (typeof message.senderId === 'string') {
-      return '/default-avatar.png';
+      return '/images/user.png';
     }
-    return message.senderId.profilePicture || '/default-avatar.png';
+    return message.senderId.profilePicture || '/images/user.png';
+  };
+
+  // Group messages by sender for consecutive messages
+  const getMessageGroups = () => {
+    const groups: Message[][] = [];
+    let currentGroup: Message[] = [];
+    let currentSenderId: string | null = null;
+
+    messages.forEach((message) => {
+      const senderId = typeof message.senderId === 'string' 
+        ? message.senderId 
+        : message.senderId._id;
+
+      if (senderId !== currentSenderId) {
+        if (currentGroup.length > 0) {
+          groups.push([...currentGroup]);
+          currentGroup = [];
+        }
+        currentSenderId = senderId;
+      }
+      currentGroup.push(message);
+    });
+
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup);
+    }
+
+    return groups;
   };
 
   if (!selectedChat) {
     return (
-      <div className="h-full flex items-center justify-center bg-base-100">
-        <div className="text-center">
-          <h3 className="text-xl font-semibold mb-2">Welcome to HiveMind Chat</h3>
-          <p className="text-base-content/60">Select a chat to start messaging</p>
+      <div className="h-full flex flex-col items-center justify-center bg-base-200">
+        <div className="text-center max-w-md p-6 rounded-xl  backdrop-blur-sm">
+          <div className="flex justify-center mb-6">
+            <Image 
+              src="https://i.postimg.cc/sfccCSVg/image.png" 
+              alt="HiveMind Welcome" 
+              width={400} 
+              height={400}
+              className="rounded-lg" 
+              unoptimized
+            />
+          </div>
+          <h2 className="text-3xl font-bold mb-3 text-white">Welcome to HiveMind Chat!</h2>
+          <p className="text-gray-300 mb-5">Connect with friends, colleagues, and communities in real-time.</p>
+          <p className="text-gray-400">Select a conversation from the sidebar or start a new chat to begin messaging.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col">
+
+    <div className="h-full flex flex-col bg-base-200">
+      {/* Horizontal divider at top */}
+      <div className="h-px w-full bg-base-300"></div>
+      
       {/* Chat header */}
-      <div className="p-4 border-b border-base-300 flex items-center">
-        <div className="avatar">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-700">
-            <Image 
-              src={selectedChat.profilePicture} 
-              alt={selectedChat.name} 
-              width={40} 
-              height={40} 
-              className="object-cover" 
-              unoptimized
-            />
+      <div className="p-3 border-b border-base-300 flex items-center justify-between bg-base-200">
+        <div className="flex items-center">
+          <div className="avatar">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-700">
+              <Image 
+                src={selectedChat.profilePicture} 
+                alt={selectedChat.name} 
+                width={40} 
+                height={40} 
+                className="object-cover" 
+                unoptimized
+              />
+            </div>
+          </div>
+          <div className="ml-3">
+            <h2 className="font-semibold text-white">{selectedChat.name}</h2>
+            <div className="flex items-center">
+              <div className={`${getUsernameColor(selectedChat.username)} rounded-full px-2 py-0.5 mr-2`}>
+                <span className="text-xs text-white font-medium">#{selectedChat.username}</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="ml-3">
-          <h2 className="font-semibold">{selectedChat.name}</h2>
-          <p className="text-xs text-base-content/60">#{selectedChat.username}</p>
+        <div className="flex items-center gap-3">
+          <button className="btn btn-ghost btn-circle">
+            <User size={20} className="text-gray-400" />
+          </button>
+          <button className="btn btn-ghost btn-circle">
+            <Phone size={20} className="text-gray-400" />
+          </button>
+          <button className="btn btn-ghost btn-circle">
+            <MoreVertical size={20} className="text-gray-400" />
+          </button>
         </div>
       </div>
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Messages area - independently scrollable */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-base-200 custom-scrollbar">
         {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
           </div>
         ) : messages.length === 0 ? (
-          <div className="text-center py-8 text-base-content/50">
+          <div className="text-center py-8 text-gray-400">
             <p>No messages yet</p>
             <p className="text-sm">Be the first to send a message!</p>
           </div>
         ) : (
-          messages.map((message) => {
-            const isUserMessage = isCurrentUserMessage(message);
+          getMessageGroups().map((group, groupIndex) => {
+            const isUserGroup = isCurrentUserMessage(group[0]);
             return (
               <div 
-                key={message._id} 
-                className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'}`}
+                key={`group-${groupIndex}`} 
+                className={`flex ${isUserGroup ? 'justify-end' : 'justify-start'}`}
               >
-                <div className="flex flex-col max-w-[70%]">
-                  {!isUserMessage && (
-                    <div className="flex items-center mb-1">
-                      <div className="avatar">
-                        <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-700">
-                          <Image 
-                            src={getSenderProfilePic(message)} 
-                            alt={getSenderName(message)} 
-                            width={24} 
-                            height={24} 
-                            className="object-cover" 
-                            unoptimized
-                          />
-                        </div>
-                      </div>
-                      <span className="text-xs font-medium ml-2">{getSenderName(message)}</span>
-                    </div>
-                  )}
-                  <div className={`rounded-lg p-3 ${
-                    isUserMessage 
-                      ? 'bg-primary text-primary-content rounded-tr-none' 
-                      : 'bg-base-300 rounded-tl-none'
-                  }`}>
-                    {message.content && <p className="break-words">{message.content}</p>}
-                    {message.hasImage && (
-                      <div className="mt-2">
-                        <Image 
-                          src={`${process.env.NEXT_PUBLIC_API_URL}/api/chats/messages/${message._id}/image`}
-                          alt="Message image"
-                          width={200}
-                          height={200}
-                          className="rounded-md max-w-full h-auto"
-                          unoptimized
-                        />
-                      </div>
-                    )}
-                    <div className="text-right text-xs mt-1 opacity-70">
-                      {formatTime(message.createdAt)}
+                {!isUserGroup && (
+                  <div className="avatar self-end mr-2">
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700">
+                      <Image 
+                        src={getSenderProfilePic(group[0])} 
+                        alt={getSenderName(group[0])} 
+                        width={32} 
+                        height={32} 
+                        className="object-cover" 
+                        unoptimized
+                      />
                     </div>
                   </div>
-                  {message.reactions.length > 0 && (
-                    <div className="flex mt-1 gap-1">
-                      {message.reactions.map((reaction, index) => (
-                        <span 
-                          key={index} 
-                          className="bg-base-200 px-1.5 py-0.5 rounded-full text-xs"
-                        >
-                          {reaction.emoji}
-                        </span>
-                      ))}
-                    </div>
+                )}
+                <div className={`flex flex-col max-w-[70%] ${isUserGroup ? 'items-end' : 'items-start'}`}>
+                  {!isUserGroup && (
+                    <span className="text-xs text-gray-400 mb-1 ml-1">{getSenderName(group[0])}</span>
                   )}
+                  <div className="space-y-1">
+                    {group.map((message, i) => (
+                      <div key={message._id} className="flex items-end gap-1">
+                        <div 
+                          className={`rounded-2xl px-4 py-2 ${
+                            isUserGroup 
+                              ? 'bg-primary text-primary-content' 
+                              : 'bg-base-300 text-white'
+                          } ${
+                            i === group.length - 1
+                              ? isUserGroup ? 'rounded-br-sm' : 'rounded-bl-sm'
+                              : ''
+                          }`}
+                        >
+                          {message.content}
+                          <div className={`text-xs opacity-70 ${isUserGroup ? 'text-right' : 'text-left'} mt-1`}>
+                            {formatTime(message.createdAt)}
+                          </div>
+                        </div>
+                        {isUserGroup && i === 0 && (
+                          <div className="avatar self-end ml-2">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700">
+                              <Image 
+                                src={currentUser.profilePicture} 
+                                alt={currentUser.username} 
+                                width={32} 
+                                height={32} 
+                                className="object-cover" 
+                                unoptimized
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             );
@@ -296,53 +357,57 @@ const ChatArea = ({ selectedChat, currentUser }: ChatAreaProps) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Message input */}
-      <div className="p-4 border-t border-base-300">
+      {/* Message input area - fixed at bottom */}
+      <div className="border-t border-base-300 p-3 bg-base-200">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          {selectedFile && (
-            <div className="relative bg-base-200 rounded p-1 mr-2">
-              <span className="text-xs">{selectedFile.name}</span>
-              <button 
-                type="button"
-                className="ml-2 text-xs text-error" 
-                onClick={() => setSelectedFile(null)}
-              >
-                ×
-              </button>
-            </div>
-          )}
+          <input 
+            type="file" 
+            className="hidden" 
+            ref={fileInputRef} 
+            onChange={handleFileSelect} 
+            accept="image/*"
+          />
           <button 
-            type="button"
-            className="btn btn-circle btn-sm btn-ghost" 
+            type="button" 
+            className="btn btn-ghost btn-circle" 
             onClick={triggerFileInput}
           >
-            <ImageIcon size={18} />
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              onChange={handleFileSelect}
-            />
+            <Paperclip size={20} className="text-gray-400" />
           </button>
-          <button type="button" className="btn btn-circle btn-sm btn-ghost">
-            <Paperclip size={18} />
+          <button type="button" className="btn btn-ghost btn-circle">
+            <Mic size={20} className="text-gray-400" />
           </button>
           <input
             type="text"
-            placeholder="Type your message..."
-            className="input input-bordered flex-1"
+            placeholder="Message here...."
+            className="input bg-base-300 flex-1 border-0 focus:outline focus:outline-1 focus:outline-gray-500 text-white placeholder-gray-400 rounded-full"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleTyping}
           />
           <button 
             type="submit" 
-            className="btn btn-circle btn-primary" 
+            className={`btn btn-circle ${(!newMessage.trim() && !selectedFile) ? 'btn-disabled' : 'btn-primary'}`}
             disabled={!newMessage.trim() && !selectedFile}
           >
-            <Send size={18} />
+            <Send size={18} className="text-current" />
           </button>
         </form>
+        
+        {selectedFile && (
+          <div className="mt-2 p-2 bg-base-300 rounded-md flex items-center justify-between">
+            <div className="flex items-center">
+              <ImageIcon size={16} className="mr-2 text-white" />
+              <span className="text-sm truncate max-w-[200px] text-white">{selectedFile.name}</span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-xs btn-ghost text-white"
+              onClick={() => setSelectedFile(null)}
+            >
+              &times;
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
