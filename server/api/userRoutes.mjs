@@ -179,7 +179,7 @@ router.get('/:userId', async (req, res) => {
 // GET /api/users - Get all users
 router.get('/', async (req, res) => {
     try {
-        const users = await User.find().select('-password').lean(); // Exclude passwords
+        const users = await User.find().select('-password -profilePicture').lean(); // Exclude passwords
         return res.status(200).json(users);
     } catch (error) {
         console.error('Failed to fetch users:', error);
