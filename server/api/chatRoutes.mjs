@@ -515,4 +515,45 @@ router.delete('/:conversationId', async (req, res) => {
     }
 });
 
+// 8. GET /api/chats/:conversationId/profilepicture - Get profile picture of a user(s) in a conversation
+router.get('/:conversationId/profilepicture', async (req, res) => {
+    const { conversationId } = req.params;
+    const { userId } = req.query; // Get userId from query parameters
+
+    if (!userId) {
+        return res.status(400).json({ message: 'Missing userId in query parameters' });
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        return res.status(400).json({ message: 'Invalid conversation ID format' });
+    }
+    
+    try {
+        // Find the conversation and check if user is a participant
+        const conversation = await Conversation.findOne({
+            _id: new mongoose.Types.ObjectId(conversationId),
+            participants: new mongoose.Types.ObjectId(userId)
+        }).populate('participants', 'profilePicture').lean();
+        
+        if (!conversation) {
+            return res.status(404).json({ message: 'Conversation not found or user is not a participant' });
+        }
+        
+        // Extract profile pictures of participants
+        const profilePictures = conversation.participants.map(participant => ({
+            userId: participant._id,
+            profilePicture: participant.profilePicture
+        }));
+        
+        return res.status(200).json(profilePictures);
+    } catch (error) {
+        console.error('Failed to fetch profile pictures:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
 export default router;
