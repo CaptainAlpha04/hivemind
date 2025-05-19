@@ -38,7 +38,7 @@ export default function CreatePostPage() {
     setIsLoadingCommunities(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/api/communities`, {
+      const response = await fetch(`${apiUrl}/api/communities/user/${session?.user.id}`, {
         credentials: 'include',
       });
       

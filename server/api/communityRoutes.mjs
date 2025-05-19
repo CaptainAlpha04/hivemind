@@ -338,8 +338,34 @@ router.post('/:communityId/moderators', async (req, res) => {
     }
 });
 
-// Add community edit functionality
 
+// GET /api/communities/:userId/profilePicture - Get community's profile picture 
+router.get('/:communityId/profilePicture', async (req, res) => {
+    try {
+        const { communityId } = req.params;
+        
+        if (!mongoose.Types.ObjectId.isValid(communityId)) {
+            return res.status(400).json({ message: 'Invalid community ID format' });
+        }
+        
+        const community = await Community.findById(communityId).select('profilePicture');
+        
+        if (!community || !community.profilePicture) {
+            return res.status(404).json({ message: 'Profile picture not found' });
+        }
+        
+        // Set appropriate content type
+        // Since we didn't store content type with the buffer, we'll use a default
+        res.set('Content-Type', 'image/jpeg');
+        res.send(community.profilePicture.data);
+        
+    } catch (error) {
+        console.error('Failed to retrieve profile picture:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// Add community edit functionality
 // PUT /api/communities/:communityId - Update community details
 router.put('/:communityId', upload.fields([
     { name: 'profilePicture', maxCount: 1 },

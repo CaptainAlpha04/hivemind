@@ -190,7 +190,7 @@ function ChatMenu({ onSelectChat, username, userId, chats = [] }: ChatMenuProps)
 
   // HiveMind logo component with back button functionality
   const HiveMindLogo = () => (
-    <Link href="/" className="flex items-center gap-2 mb-3 mt-1 cursor-pointer hover:opacity-80 transition-opacity">
+    <Link href="/" className="flex items-center gap-2 mb-3 mt-1 cursor-pointer hover:opacity-80 transition-opacity ml-10">
       <div className="avatar">
         <Image 
           src="/images/logo.png" 

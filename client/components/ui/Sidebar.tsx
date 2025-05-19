@@ -15,14 +15,24 @@ import {
   Menu
 } from "lucide-react";
 
+// Define a proper interface for community data
+interface Community {
+  _id: string;
+  name: string;
+  description?: string;
+  isPrivate?: boolean;
+  profilePicture?: any;
+}
+
 const Sidebar = () => {
   // Add state for sidebar collapsed status
   const [collapsed, setCollapsed] = useState(false);
-  const [communities, setCommunities] = useState([]);
+  const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: session } = useSession();
-  const sidebarRef = useRef(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
   // Function to toggle sidebar
   const toggleSidebar = () => {
@@ -40,7 +50,7 @@ const Sidebar = () => {
   // Close sidebar on outside click (mobile only)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (mobileOpen && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+      if (mobileOpen && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
         setMobileOpen(false);
       }
     };
@@ -53,7 +63,7 @@ const Sidebar = () => {
   
   // Handle ESC key to close mobile sidebar
   useEffect(() => {
-    const handleEscKey = (event) => {
+    const handleEscKey = (event: KeyboardEvent) => {
       if (mobileOpen && event.key === 'Escape') {
         setMobileOpen(false);
       }
@@ -70,24 +80,31 @@ const Sidebar = () => {
     const fetchCommunities = async () => {
       setLoading(true);
       try {
+        if (!apiUrl) {
+          console.error('API URL is not defined');
+          setLoading(false);
+          return;
+        }
+
         let url;
         // If user is logged in, fetch communities they're a member of
         if (session?.user?.id) {
-          // Fix: The route should be correct according to your communityRoutes.mjs
-          url = `${process.env.NEXT_PUBLIC_API_URL}/api/communities/user/${session.user.id}`;
+          url = `${apiUrl}/api/communities/user/${session.user.id}`;
         } else {
           // For non-logged in users, fetch public communities
-          url = `${process.env.NEXT_PUBLIC_API_URL}/api/communities`;
+          url = `${apiUrl}/api/communities`;
         }
         
         const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch communities');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch communities: ${response.status}`);
+        }
         
         let data = await response.json();
         
         // If no communities found, fetch public ones as fallback
         if (data.length === 0 && session?.user?.id) {
-          const publicResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/communities`);
+          const publicResponse = await fetch(`${apiUrl}/api/communities`);
           if (publicResponse.ok) {
             data = await publicResponse.json();
           }
@@ -99,9 +116,9 @@ const Sidebar = () => {
       } catch (error) {
         console.error('Error fetching communities:', error);
         // Fallback: If error occurs, try fetching public communities
-        if (session?.user?.id) {
+        if (session?.user?.id && apiUrl) {
           try {
-            const fallbackResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/communities`);
+            const fallbackResponse = await fetch(`${apiUrl}/api/communities`);
             if (fallbackResponse.ok) {
               const fallbackData = await fallbackResponse.json();
               setCommunities(fallbackData.slice(0, 3));
@@ -116,7 +133,32 @@ const Sidebar = () => {
     };
 
     fetchCommunities();
-  }, []);
+  }, [apiUrl]);
+
+  // Properly handle community profile images
+  const CommunityAvatar = ({ community }: { community: Community }) => {
+    const [imageError, setImageError] = useState(false);
+    const imageUrl = apiUrl ? 
+      `${apiUrl}/api/communities/${community._id}/profilePicture` :
+      '/default-community.png';
+
+    return (
+      <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-600 flex-shrink-0">
+        {!imageError ? (
+          <img 
+            src={imageUrl}
+            alt={community.name}
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-700">
+            <Users size={12} className="text-gray-400" />
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -216,23 +258,11 @@ const Sidebar = () => {
                       className="flex items-center gap-2 text-base-content hover:text-primary transition-colors px-2 py-1.5 rounded-lg hover:bg-white/5"
                       onClick={() => setMobileOpen(false)}
                     >
-                      <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-600 flex-shrink-0">
-                        {community.profilePicture ? (
-                          <img 
-                            src={`${process.env.NEXT_PUBLIC_API_URL}/api/communities/${community._id}/profile-picture`}
-                            alt={community.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = '/default-community.png';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Users size={12} />
-                          </div>
-                        )}
-                      </div>
+                      <CommunityAvatar community={community} />
                       <span className="truncate">{community.name}</span>
+                      {community.isPrivate && (
+                        <span className="badge badge-xs badge-warning">Private</span>
+                      )}
                     </Link>
                   ))
                 ) : (
@@ -275,13 +305,23 @@ const Sidebar = () => {
                   title={community.name}
                   onClick={() => setMobileOpen(false)}
                 >
-                  {community.profilePicture ? (
-                    <img 
-                      src={`${process.env.NEXT_PUBLIC_API_URL}/api/communities/${community._id}/profile-picture`}
+                  {/* Use the dedicated profile picture endpoint */}
+                  {apiUrl ? (
+                    <Image
+                      src={`${apiUrl}/api/communities/${community._id}/profilePicture`}
                       alt={community.name}
-                      className="w-full h-full object-cover"
+                      width={40}
+                      height={40}
+                      className="object-cover"
+                      unoptimized
                       onError={(e) => {
-                        e.currentTarget.src = '/default-community.png';
+                        // Fallback to default icon if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = '<div class="flex items-center justify-center w-full h-full"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 13C13.66 13 15 11.66 15 10C15 8.34 13.66 7 12 7C10.34 7 9 8.34 9 10C9 11.66 10.34 13 12 13Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 20C18 17.79 15.31 16 12 16C8.69 16 6 17.79 6 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 4L9 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9H9V5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 19L17 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 15H17V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
+                        }
                       }}
                     />
                   ) : (
