@@ -7,6 +7,7 @@ import TrendingPosts from "./Trending";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import PostCard from "./Post";
+import { PlusIcon, XMarkIcon } from "@heroicons/react/24/solid";
 
 // Fixed image URL for placeholder
 const FIXED_IMAGE_URL = "/images/human.jpg";
@@ -38,28 +39,49 @@ interface Post {
   updatedAt: string;
 }
 
-const stories = [
+// Story interface based on backend model
+interface Story {
+  _id: string;
+  userId: string;
+  username: string;
+  title: string;
+  caption?: string;
+  hasImage: boolean;
+  viewed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Keeping the static stories for fallback
+const mockStories = [
   { title: "Zeus's third birthday 🐾", img: FIXED_IMAGE_URL, user: "Ali" },
   { title: "Just build a vectorizing Agent", img: FIXED_IMAGE_URL, user: "Doe" },
   { title: "What do ya guys think?", img: FIXED_IMAGE_URL, user: "Smith" },
   { title: "Vacation Time!!!", img: FIXED_IMAGE_URL, user: "Alice" },
 ];
 
-export default function MainPage() {
-  const { data: session } = useSession();
+export default function MainPage() {  const { data: session } = useSession();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [storiesLoading, setStoriesLoading] = useState<boolean>(true);
+  const [storiesError, setStoriesError] = useState<string | null>(null);
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+  const [showStoryViewer, setShowStoryViewer] = useState<boolean>(false);
+  const [showCreateStory, setShowCreateStory] = useState<boolean>(false);
+  const [storyTitle, setStoryTitle] = useState<string>('');
+  const [storyCaption, setStoryCaption] = useState<string>('');
+  const [storyImage, setStoryImage] = useState<File | null>(null);
+  const [storyUploadLoading, setStoryUploadLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  // Using the state for comment text in the component
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
   const [likeLoading, setLikeLoading] = useState<Record<string, boolean>>({});
   const [animatingLikes, setAnimatingLikes] = useState<Record<string, boolean>>({});
-  const [replyText, setReplyText] = useState<Record<string, string>>({});
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [commentLikeLoading, setCommentLikeLoading] = useState<Record<string, boolean>>({});
   const [animatingCommentLikes, setAnimatingCommentLikes] = useState<Record<string, boolean>>({});
   const [expandedCommentSections, setExpandedCommentSections] = useState<Record<string, boolean>>({});
-
   useEffect(() => {
     async function fetchPosts() {
       try {
@@ -90,7 +112,134 @@ export default function MainPage() {
     }
 
     fetchPosts();
-  }, []); 
+
+  }, [session]);
+
+  // Fetch stories from the API
+  useEffect(() => {
+    async function fetchStories() {
+      if (!session?.user?.id) return;
+      
+      try {
+        setStoriesLoading(true);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiUrl}/api/stories?userId=${session.user.id}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.user?.accessToken && { 
+              'Authorization': `Bearer ${session.user.accessToken}` 
+            })
+          },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching stories: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setStories(data);
+      } catch (err) {
+        console.error("Failed to fetch stories:", err);
+        setStoriesError(err instanceof Error ? err.message : "Failed to load stories");
+        // Use mock stories as fallback if API fails
+        setStories([]);
+      } finally {
+        setStoriesLoading(false);
+      }
+    }
+
+    fetchStories();
+  }, [session]);
+  
+  // Handle viewing a story
+  const handleViewStory = async (story: Story) => {
+    setSelectedStory(story);
+    setShowStoryViewer(true);
+    
+    // Mark story as viewed if not already viewed
+    if (!story.viewed && session?.user?.id) {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiUrl}/api/stories/${story._id}/view`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.user?.accessToken && { 
+              'Authorization': `Bearer ${session.user.accessToken}` 
+            })
+          },
+          body: JSON.stringify({ userId: session.user.id }),
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          // Update the viewed status in the local state
+          setStories(prevStories => 
+            prevStories.map(s => 
+              s._id === story._id ? { ...s, viewed: true } : s
+            )
+          );
+        }
+      } catch (error) {
+        console.error("Failed to mark story as viewed:", error);
+      }
+    }
+  };
+  
+  // Handle creating a new story
+  const handleCreateStory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!session?.user?.id || !storyTitle || !storyImage) {
+      return;
+    }
+    
+    try {
+      setStoryUploadLoading(true);
+      
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const formData = new FormData();
+      formData.append('userId', session.user.id);
+      formData.append('title', storyTitle);
+      formData.append('image', storyImage);
+      
+      if (storyCaption) {
+        formData.append('caption', storyCaption);
+      }
+      
+      const response = await fetch(`${apiUrl}/api/stories`, {
+        method: 'POST',
+        headers: {
+          ...(session?.user?.accessToken && { 
+            'Authorization': `Bearer ${session.user.accessToken}` 
+          })
+        },
+        body: formData,
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error creating story: ${response.status}`);
+      }
+      
+      // Get the new story and add it to the stories array
+      const newStory = await response.json();
+      setStories(prevStories => [newStory, ...prevStories]);
+      
+      // Reset form and close modal
+      setStoryTitle('');
+      setStoryCaption('');
+      setStoryImage(null);
+      setShowCreateStory(false);
+    } catch (error) {
+      console.error("Failed to create story:", error);
+      alert("Failed to create story. Please try again.");
+    } finally {
+      setStoryUploadLoading(false);
+    }
+  };
+
   
   const toggleComments = (postId: string) => {
     setExpandedCommentSections(prev => ({
@@ -243,9 +392,8 @@ export default function MainPage() {
     } catch (err) {
       console.error("Failed to reply to comment:", err);
     }
-  };
-
-  // Helper function for comment likes
+  };  // Helper function for comment likes
+  // Used in PostCard component
   const hasUserLikedComment = (commentLikes: string[], userId: string | undefined) => {
     if (!userId) return false;
     return commentLikes.includes(userId);
@@ -432,31 +580,97 @@ export default function MainPage() {
       <Header />
       <Sidebar />
       
-      <main className="flex-1 p-4 md:p-8 flex flex-col gap-4 md:gap-6 md:ml-[280px] mt-[56px] md:mt-[70px] mb-[60px] md:mb-0">
-        {/* Stories - Resized for mobile */}
+      <main className="flex-1 p-4 md:p-8 flex flex-col gap-4 md:gap-6 md:ml-[280px] mt-[56px] md:mt-[70px] mb-[60px] md:mb-0">        {/* Stories - Resized for mobile */}
         <section className="mb-2 md:mb-6">
-          <h2 className="text-primary font-bold text-xl mb-2 md:mb-4 ml-1">Your Stories</h2>
+          <div className="flex justify-between items-center mb-2 md:mb-4">
+            <h2 className="text-primary font-bold text-xl ml-1">Your Stories</h2>
+            <button 
+              onClick={() => setShowCreateStory(true)} 
+              className="btn btn-sm btn-primary btn-outline"
+              aria-label="Create a new story"
+            >
+              <PlusIcon className="h-4 w-4 mr-1" />
+              <span className="hidden md:inline">New Story</span>
+            </button>
+          </div>
           <div className="flex gap-2 md:gap-4 overflow-x-auto pb-1 md:pb-2 scrollbar-hide">
-            {stories.map((story) => (
-              <div key={story.title} className="card w-[75px] md:w-[200px] h-[75px] md:h-[120px] bg-base-300 rounded-full md:rounded-2xl overflow-hidden flex-shrink-0 relative">
-                <figure className="w-full h-full">
-                  <Image 
-                    src={story.img} 
-                    alt={story.title} 
-                    className="object-cover" 
-                    width={200}
-                    height={120}
-                    layout="responsive"
-                  />
-                </figure>
-                <div className="hidden md:block absolute bottom-2 left-3 right-[60px] text-base-content font-semibold truncate text-shadow">
-                  {story.title}
-                </div>
-                <div className="hidden md:block absolute bottom-2 right-3 text-primary font-semibold text-sm max-w-[50px] text-right truncate">
-                  {story.user}
-                </div>
+            {/* Create Story Button on Mobile */}
+            <div 
+              onClick={() => setShowCreateStory(true)}
+              className="md:hidden card w-[75px] h-[75px] bg-base-300 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center cursor-pointer border-2 border-primary"
+            >
+              <PlusIcon className="h-8 w-8 text-primary" />
+            </div>
+            
+            {storiesLoading ? (
+              <div className="flex items-center justify-center w-full h-[75px] md:h-[120px]">
+                <span className="loading loading-spinner loading-md text-primary"></span>
               </div>
-            ))}
+            ) : storiesError ? (
+              <div className="flex items-center justify-center w-full h-[75px] md:h-[120px]">
+                <p className="text-error">Unable to load stories</p>
+              </div>
+            ) : stories.length > 0 ? (
+              stories.map((story) => (
+                <div 
+                  key={story._id} 
+                  onClick={() => handleViewStory(story)}
+                  className={`card w-[75px] md:w-[200px] h-[75px] md:h-[120px] bg-base-300 rounded-full md:rounded-2xl overflow-hidden flex-shrink-0 relative cursor-pointer ${!story.viewed ? 'ring-2 ring-primary' : ''}`}
+                >                  <figure className="w-full h-full">
+                    <div className={`absolute inset-0 bg-gray-600 ${story.viewed ? 'opacity-50' : 'opacity-0'}`}></div>
+                    <Image 
+                      src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/stories/${story._id}/image?userId=${session?.user?.id}`} 
+                      alt={story.title} 
+                      className="object-cover" 
+                      width={200}
+                      height={120}
+                      priority
+                      onError={(e) => {
+                        // Fallback to default image on error
+                        const target = e.target as HTMLImageElement;
+                        target.src = FIXED_IMAGE_URL;
+                      }}
+                    />
+                  </figure>
+                  <div className="hidden md:block absolute bottom-2 left-3 right-[60px] text-white font-semibold truncate text-shadow">
+                    {story.title}
+                  </div>
+                  <div className="hidden md:block absolute bottom-2 right-3 text-primary font-semibold text-sm max-w-[50px] text-right truncate">
+                    {story.username}
+                  </div>
+                </div>
+              ))
+            ) : (
+              // If no stories available, show the mock stories as fallback or a message
+              mockStories.length > 0 ? (
+                mockStories.map((story, index) => (
+                  <div 
+                    key={index} 
+                    className="card w-[75px] md:w-[200px] h-[75px] md:h-[120px] bg-base-300 rounded-full md:rounded-2xl overflow-hidden flex-shrink-0 relative"
+                  >
+                    <figure className="w-full h-full">                    <Image 
+                        src={story.img} 
+                        alt={story.title} 
+                        className="object-cover opacity-60" 
+                        width={200}
+                        height={120}
+                        style={{ width: '100%', height: 'auto' }}
+                      />
+                    </figure>
+                    <div className="hidden md:block absolute bottom-2 left-3 right-[60px] text-white font-semibold truncate text-shadow">
+                      {story.title}
+                    </div>
+                    <div className="hidden md:block absolute bottom-2 right-3 text-primary font-semibold text-sm max-w-[50px] text-right truncate">
+                      {story.user}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="card w-full h-[75px] md:h-[120px] bg-base-300 rounded-xl overflow-hidden flex items-center justify-center p-4">
+                  <p className="text-center text-sm md:text-base">No stories from people you follow. Create one or follow more users!</p>
+                </div>
+              )
+            )}
           </div>
         </section>
         
@@ -516,6 +730,148 @@ export default function MainPage() {
             />
           </div>
         </div>
+        
+        {/* Story Viewer Modal */}
+        {showStoryViewer && selectedStory && (
+          <div className="fixed inset-0 z-[60] bg-black bg-opacity-80 flex items-center justify-center p-4">
+            <div className="relative max-w-2xl w-full h-full max-h-[80vh] bg-base-100 rounded-xl overflow-hidden">
+              <button 
+                onClick={() => setShowStoryViewer(false)} 
+                className="absolute top-2 right-2 z-10 p-2 bg-base-200 rounded-full"
+              >
+                <XMarkIcon className="h-6 w-6 text-primary" />
+              </button>
+              
+              <div className="h-full flex flex-col">
+                <div className="p-3 border-b border-base-300 flex items-center gap-2">
+                  <div className="avatar">
+                    <div className="w-8 h-8 rounded-full">
+                      <Image 
+                        src="/images/user.png" 
+                        alt={selectedStory.username} 
+                        width={32} 
+                        height={32} 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="font-semibold">{selectedStory.username}</p>
+                    <p className="text-xs opacity-70">{new Date(selectedStory.createdAt).toLocaleString()}</p>
+                  </div>
+                </div>
+                  <div className="relative flex-grow">
+                  <Image 
+                    src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/stories/${selectedStory._id}/image?userId=${session?.user?.id}`}
+                    alt={selectedStory.title}
+                    fill
+                    style={{ objectFit: 'contain' }}
+                    className="p-2"
+                    onError={(e) => {
+                      // Fallback to default image on error
+                      const target = e.target as HTMLImageElement;
+                      target.src = FIXED_IMAGE_URL;
+                    }}
+                  />
+                </div>
+                
+                <div className="p-4 border-t border-base-300">
+                  <h3 className="font-bold text-xl mb-1">{selectedStory.title}</h3>
+                  {selectedStory.caption && (
+                    <p className="text-sm opacity-90">{selectedStory.caption}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Create Story Modal */}
+        {showCreateStory && (
+          <div className="fixed inset-0 z-[60] bg-black bg-opacity-80 flex items-center justify-center p-4">
+            <div className="relative max-w-md w-full bg-base-100 rounded-xl overflow-hidden">
+              <button 
+                onClick={() => setShowCreateStory(false)} 
+                className="absolute top-2 right-2 z-10 p-2 bg-base-200 rounded-full"
+              >
+                <XMarkIcon className="h-6 w-6 text-primary" />
+              </button>
+              
+              <div className="p-6">
+                <h3 className="font-bold text-xl mb-4">Create New Story</h3>
+                
+                <form onSubmit={handleCreateStory}>
+                  <div className="form-control mb-4">
+                    <label className="label">
+                      <span className="label-text">Title (required)</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      className="input input-bordered" 
+                      value={storyTitle}
+                      onChange={(e) => setStoryTitle(e.target.value)}
+                      placeholder="Enter a title for your story"
+                      maxLength={100}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="form-control mb-4">
+                    <label className="label">
+                      <span className="label-text">Caption (optional)</span>
+                    </label>
+                    <textarea 
+                      className="textarea textarea-bordered" 
+                      value={storyCaption}
+                      onChange={(e) => setStoryCaption(e.target.value)}
+                      placeholder="Add a caption to your story"
+                      maxLength={250}
+                    />
+                  </div>
+                  
+                  <div className="form-control mb-6">
+                    <label className="label">
+                      <span className="label-text">Image (required)</span>
+                    </label>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="file-input file-input-bordered w-full" 
+                      onChange={(e) => setStoryImage(e.target.files?.[0] || null)}
+                      required
+                    />                    {storyImage && (
+                      <div className="mt-2 relative h-40 w-full">
+                        <Image 
+                          src={URL.createObjectURL(storyImage)} 
+                          alt="Story preview" 
+                          fill
+                          style={{ objectFit: 'contain' }}
+                          className="rounded-lg"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <button 
+                      type="button" 
+                      className="btn btn-ghost mr-2" 
+                      onClick={() => setShowCreateStory(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary" 
+                      disabled={storyUploadLoading || !storyImage || !storyTitle}
+                    >
+                      {storyUploadLoading ? <span className="loading loading-spinner loading-sm"></span> : 'Post Story'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
