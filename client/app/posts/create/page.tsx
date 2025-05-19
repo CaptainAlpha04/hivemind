@@ -38,7 +38,7 @@ export default function CreatePostPage() {
     setIsLoadingCommunities(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/api/communities`, {
+      const response = await fetch(`${apiUrl}/api/communities/user/${session?.user.id}`, {
         credentials: 'include',
       });
       
@@ -130,7 +130,7 @@ export default function CreatePostPage() {
       return;
     }
 
-    if (status !== 'authenticated' || !session?.user?.accessToken) { 
+    if (status !== 'authenticated') { 
       setIsSubmitting(false);
       document.getElementById('auth-error-modal')?.classList.add('modal-open');
       return;
@@ -170,7 +170,7 @@ export default function CreatePostPage() {
         console.log('Post created:', data);
         document.getElementById('success-modal')?.classList.add('modal-open');
         setTimeout(() => {
-          router.push('/posts');
+          router.push('/home');
         }, 1500);
       } else {
         document.getElementById('error-modal')?.classList.add('modal-open');

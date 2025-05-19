@@ -74,6 +74,14 @@ export default function MainPage() {  const { data: session } = useSession();
   const [storyUploadLoading, setStoryUploadLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Pagination state
+  const [page, setPage] = useState<number>(1);
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  const observerRef = React.useRef<IntersectionObserver | null>(null);
+  const loadMoreTriggerRef = React.useRef<HTMLDivElement>(null);
+  
   // Using the state for comment text in the component
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
@@ -81,38 +89,82 @@ export default function MainPage() {  const { data: session } = useSession();
   const [animatingLikes, setAnimatingLikes] = useState<Record<string, boolean>>({});
   const [commentLikeLoading, setCommentLikeLoading] = useState<Record<string, boolean>>({});
   const [animatingCommentLikes, setAnimatingCommentLikes] = useState<Record<string, boolean>>({});
-  const [expandedCommentSections, setExpandedCommentSections] = useState<Record<string, boolean>>({});
-  useEffect(() => {
-    async function fetchPosts() {
-      try {
+  const [expandedCommentSections, setExpandedCommentSections] = useState<Record<string, boolean>>({});  // Function to fetch posts with pagination
+  const fetchPosts = async (pageNum = 1, append = false) => {
+    try {
+      if (pageNum === 1) {
         setLoading(true);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${apiUrl}/api/posts`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session?.user?.accessToken && { 
-              'Authorization': `Bearer ${session.user.accessToken}` 
-            })
-          },
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error fetching posts: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        setPosts(data);
-      } catch (err) {
-        console.error("Failed to fetch posts:", err);
-        setError(err instanceof Error ? err.message : "Failed to load posts");
-      } finally {
-        setLoading(false);
+      } else {
+        setLoadingMore(true);
       }
+      
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/posts?page=${pageNum}&limit=10`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.user?.accessToken && { 
+            'Authorization': `Bearer ${session.user.accessToken}` 
+          })
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error fetching posts: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (append) {
+        setPosts(prev => [...prev, ...data.posts]);
+      } else {
+        setPosts(data.posts);
+      }
+      
+      setHasMore(data.pagination.hasMore);
+      setPage(data.pagination.page);
+    } catch (err) {
+      console.error("Failed to fetch posts:", err);
+      setError(err instanceof Error ? err.message : "Failed to load posts");
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
     }
-
-    fetchPosts();
+  };
+  // Initial post loading
+  useEffect(() => {
+    fetchPosts(1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
+  
+  // Load more posts when user scrolls to the bottom
+  useEffect(() => {
+    // Disconnect previous observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+    
+    // Create new intersection observer
+    observerRef.current = new IntersectionObserver(entries => {
+      const [entry] = entries;
+      if (entry.isIntersecting && hasMore && !loading && !loadingMore) {
+        fetchPosts(page + 1, true);
+      }
+    }, { threshold: 0.5 });
+    
+    // Observe the load more trigger element
+    if (loadMoreTriggerRef.current) {
+      observerRef.current.observe(loadMoreTriggerRef.current);
+    }
+    
+    // Cleanup observer on unmount
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMore, loading, loadingMore, page]);
 
   // Fetch stories from the API
   useEffect(() => {
@@ -238,6 +290,7 @@ export default function MainPage() {  const { data: session } = useSession();
       setStoryUploadLoading(false);
     }
   };
+
   
   const toggleComments = (postId: string) => {
     setExpandedCommentSections(prev => ({
@@ -692,28 +745,50 @@ export default function MainPage() {  const { data: session } = useSession();
             ) : posts.length === 0 ? (
               <div className="card bg-base-300 rounded-xl md:rounded-2xl p-4 md:p-6 min-h-[200px] flex justify-center items-center">
                 <p className="text-base-content text-center">No posts found</p>
-              </div>
-            ) : (
-              // Use the PostCard component for each post
-              posts.map((post) => (
-                <PostCard
-                  key={post._id}
-                  post={post}
-                  formatDate={formatDate}
-                  formatNumber={formatNumber}
-                  onLike={handleLikePost}
-                  onComment={handleAddComment}
-                  onLikeComment={handleLikeComment}
-                  onReplyToComment={handleReplyToComment}
-                  likeLoading={likeLoading}
-                  commentLoading={commentLoading}
-                  animatingLikes={animatingLikes}
-                  commentLikeLoading={commentLikeLoading}
-                  animatingCommentLikes={animatingCommentLikes}
-                  expandedCommentSections={expandedCommentSections}
-                  toggleComments={toggleComments}
-                />
-              ))
+              </div>            ) : (
+              <>
+                {/* Posts list */}
+                {posts.map((post) => (
+                  <PostCard
+                    key={post._id}
+                    post={post}
+                    formatDate={formatDate}
+                    formatNumber={formatNumber}
+                    onLike={handleLikePost}
+                    onComment={handleAddComment}
+                    onLikeComment={handleLikeComment}
+                    onReplyToComment={handleReplyToComment}
+                    likeLoading={likeLoading}
+                    commentLoading={commentLoading}
+                    animatingLikes={animatingLikes}
+                    commentLikeLoading={commentLikeLoading}
+                    animatingCommentLikes={animatingCommentLikes}
+                    expandedCommentSections={expandedCommentSections}
+                    toggleComments={toggleComments}
+                  />
+                ))}
+                
+                {/* Load more trigger */}
+                {hasMore && (
+                  <div 
+                    ref={loadMoreTriggerRef}
+                    className="card bg-base-300 rounded-xl md:rounded-2xl p-4 flex justify-center items-center my-2"
+                  >
+                    {loadingMore ? (
+                      <span className="loading loading-spinner loading-md text-primary"></span>
+                    ) : (
+                      <p className="text-sm text-gray-400">Scroll for more</p>
+                    )}
+                  </div>
+                )}
+                
+                {/* No more posts message */}
+                {!hasMore && posts.length > 0 && (
+                  <div className="card bg-base-300 rounded-xl md:rounded-2xl p-4 flex justify-center items-center my-2">
+                    <p className="text-sm text-gray-400">No more posts</p>
+                  </div>
+                )}
+              </>
             )}
           </section>
           
