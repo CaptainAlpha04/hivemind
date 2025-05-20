@@ -637,7 +637,7 @@ export default function MainPage() {  const { data: session } = useSession();
             <h2 className="text-primary font-bold text-xl ml-1">Your Stories</h2>
             <button 
               onClick={() => setShowCreateStory(true)} 
-              className="btn btn-sm btn-primary btn-outline"
+              className="btn btn-sm btn-primary btn-outline hidden md:flex"
               aria-label="Create a new story"
             >
               <PlusIcon className="h-4 w-4 mr-1" />
@@ -691,37 +691,12 @@ export default function MainPage() {  const { data: session } = useSession();
                   </div>
                 </div>
               ))
-            ) : (
-              // If no stories available, show the mock stories as fallback or a message
-              mockStories.length > 0 ? (
-                mockStories.map((story, index) => (
-                  <div 
-                    key={index} 
-                    className="card w-[75px] md:w-[200px] h-[75px] md:h-[120px] bg-base-300 rounded-full md:rounded-2xl overflow-hidden flex-shrink-0 relative"
-                  >
-                    <figure className="w-full h-full">                    <Image 
-                        src={story.img} 
-                        alt={story.title} 
-                        className="object-cover opacity-60" 
-                        width={200}
-                        height={120}
-                        style={{ width: '100%', height: 'auto' }}
-                      />
-                    </figure>
-                    <div className="hidden md:block absolute bottom-2 left-3 right-[60px] text-white font-semibold truncate text-shadow">
-                      {story.title}
-                    </div>
-                    <div className="hidden md:block absolute bottom-2 right-3 text-primary font-semibold text-sm max-w-[50px] text-right truncate">
-                      {story.user}
-                    </div>
-                  </div>
-                ))
-              ) : (
+            ) :(
                 <div className="card w-full h-[75px] md:h-[120px] bg-base-300 rounded-xl overflow-hidden flex items-center justify-center p-4">
                   <p className="text-center text-sm md:text-base">No stories from people you follow. Create one or follow more users!</p>
                 </div>
               )
-            )}
+            }
           </div>
         </section>
         
