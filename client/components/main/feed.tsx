@@ -668,7 +668,6 @@ export default function MainPage() {  const { data: session } = useSession();
                   onClick={() => handleViewStory(story)}
                   className={`card w-[75px] md:w-[200px] h-[75px] md:h-[120px] bg-base-300 rounded-full md:rounded-2xl overflow-hidden flex-shrink-0 relative cursor-pointer ${!story.viewed ? 'ring-2 ring-primary' : ''}`}
                 >                  <figure className="w-full h-full">
-                    <div className={`absolute inset-0 bg-gray-600 ${story.viewed ? 'opacity-50' : 'opacity-0'}`}></div>
                     <Image 
                       src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/stories/${story._id}/image?userId=${session?.user?.id}`} 
                       alt={story.title} 
@@ -781,7 +780,7 @@ export default function MainPage() {  const { data: session } = useSession();
         
         {/* Story Viewer Modal */}
         {showStoryViewer && selectedStory && (
-          <div className="fixed inset-0 z-[60] bg-black bg-opacity-80 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[60]  flex items-center justify-center p-4">
             <div className="relative max-w-2xl w-full h-full max-h-[80vh] bg-base-100 rounded-xl overflow-hidden">
               <button 
                 onClick={() => setShowStoryViewer(false)} 
