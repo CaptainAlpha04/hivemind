@@ -157,6 +157,10 @@
   }
 }
 
+nextjs-portal {
+  display: none;
+}
+
 .like-animation {
   overflow: visible !important;
 }

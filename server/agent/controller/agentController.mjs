@@ -143,7 +143,7 @@ export async function initializeAgents(agentInstructions) {
 
     const actorInstance = new Actor(agentInstructions);
     // Initialize the chat model with the actor's instructions
-
+    console.log("Actor Instance Initiated. ")
     return actorInstance;
 }
 
@@ -151,7 +151,7 @@ export async function handleChatRequest(userID, actorInstance, message) {
 
     // Send the message to the chat model and get the response
     const response = await actorInstance.chat(userID, message);
-    
+    console.log("response from bot:" + response)
     // Return the response
     return response;
 }

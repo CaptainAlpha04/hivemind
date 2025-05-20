@@ -4,6 +4,7 @@ import multer from 'multer';
 import Message from '../model/message.mjs';
 import Conversation from '../model/conversation.mjs';
 import User from '../model/user.mjs';
+import Bot from '../model/bot.mjs';
 import { getBotSummary, handleChatRequest, initializeAgents } from '../agent/controller/agentController.mjs';
 
 const router = express.Router();
@@ -231,21 +232,26 @@ router.post('/messages', upload.single('image'), async (req, res) => {
             messageResponse.hasImage = true;
         }
 
-        const bot = conversation.participants.find(participant => participant.isBot);
-        
-        if (bot && bot._id != senderId) {
+        // Find if any participant is a bot (excluding the sender)
+        const bots = await Bot.find({
+            userId: { $in: conversation.participants.filter(id => id.toString() !== senderId.toString()) }
+        });
 
+        const bot = bots.length > 0 ? bots[0] : null;
+    
+        if (bot && bot._id != senderId) {
+            console.log("bot found:" + bot._id)
             // If the sender is not the bot, send the message to the bot
-            const bot_info = getBotSummary(bot._id)
-            const agent = initializeAgents(bot_info);
+            const bot_info = await getBotSummary(bot._id)
+            const agent = await initializeAgents(bot_info);
             const response = await handleChatRequest(senderId, agent, content);
             if (response) {
                 // Create message data for bot response
                 const botMessageData = {
                     conversationId: conversation._id,
-                    senderId: bot._id,
+                    senderId: bot.userId,
                     content: response,
-                    readBy: [bot._id] // Mark as read by bot
+                    readBy: [bot.userId] // Mark as read by bot
                 };
                 
                 // Add image if provided
@@ -271,6 +277,29 @@ router.post('/messages', upload.single('image'), async (req, res) => {
                 };
                 
                 await conversation.save();
+                
+                // Format bot message for WebSocket (without image binary data)
+                const botMessageResponse = newBotMessage.toObject();
+                if (botMessageResponse.image) {
+                    delete botMessageResponse.image.data;
+                    botMessageResponse.hasImage = true;
+                }
+                
+                // Send real-time notification to all participants (including the sender)
+                const webSocketService = req.app.get('webSocketService');
+                if (webSocketService) {
+                    const participantIds = conversation.participants.map(p => p.toString());
+                    webSocketService.broadcastToConversation(
+                        conversation._id.toString(),
+                        participantIds,
+                        {
+                            type: 'new_message',
+                            conversationId: conversation._id.toString(),
+                            message: botMessageResponse
+                        }
+                        // No exclusion parameter - send to all participants including the original sender
+                    );
+                }
             }
         }
         

@@ -3,7 +3,6 @@ import { useState, useRef, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { PenLine, Eye, Users, Lock, ImageIcon, X, ChevronDown, Hash } from 'lucide-react';
-import Footer from '@/components/ui/Footer';
 import Header from '@/components/ui/Header';
 import Sidebar from '@/components/ui/Sidebar';
 
@@ -473,7 +472,6 @@ export default function CreatePostPage() {
           </div>
         </main>
         
-        <Footer />
       </div>
       
       <div className="drawer-side">
