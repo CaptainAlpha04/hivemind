@@ -7,7 +7,7 @@ import Header from "@/components/ui/Header";
 import Sidebar from "@/components/ui/Sidebar";
 import PostCard from "@/components/main/Post";
 import Link from "next/link";
-import { Users, PlusCircle, Bell, Settings, Info, Shield, MessageSquare, Clock, Flame, TrendingUp } from "lucide-react";
+import { Users, PlusCircle, Bell, Settings, Info, Shield, MessageSquare, Clock, Flame, TrendingUp, MoreHorizontal } from "lucide-react";
 
 // Type definitions
 interface Community {
@@ -79,6 +79,8 @@ const HiveFeed: React.FC<HiveFeedProps> = ({communityId, subPath}) => {
   const [joinLoading, setJoinLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState("recent");
   const [error, setError] = useState<string | null>(null);
+  // New state for mobile
+  const [showMobileHiveInfo, setShowMobileHiveInfo] = useState(false);
   
   // State for image URLs
   const [profileImageUrl, setProfileImageUrl] = useState<string>('/images/user.png');
@@ -484,10 +486,10 @@ const HiveFeed: React.FC<HiveFeedProps> = ({communityId, subPath}) => {
         <Header />
         <div className="flex mt-[70px]">
           <Sidebar />
-          <main className="flex-1 ml-[280px] pb-8 flex items-center justify-center">
-            <div className="bg-base-100 rounded-2xl p-8 max-w-md text-center">
-              <Shield size={48} className="mx-auto mb-4 text-error" />
-              <h2 className="text-xl font-bold mb-2">Access Restricted</h2>
+          <main className="flex-1 md:ml-[280px] pb-8 px-4 md:px-8 flex items-center justify-center mb-[60px] md:mb-0">
+            <div className="bg-base-100 rounded-xl md:rounded-2xl p-6 md:p-8 max-w-md text-center">
+              <Shield size={40} className="mx-auto mb-4 text-error" />
+              <h2 className="text-lg md:text-xl font-bold mb-2">Access Restricted</h2>
               <p className="text-base-content/70 mb-4">{error}</p>
               <Link href="/hives" className="btn btn-primary">
                 Explore Other Hives
@@ -505,10 +507,10 @@ const HiveFeed: React.FC<HiveFeedProps> = ({communityId, subPath}) => {
         <Header />
         <div className="flex mt-[70px]">
           <Sidebar />
-          <main className="flex-1 ml-[280px] pb-8 flex items-center justify-center">
-            <div className="bg-base-100 rounded-2xl p-8 max-w-md text-center">
-              <Info size={48} className="mx-auto mb-4 text-error" />
-              <h2 className="text-xl font-bold mb-2">Hive Not Found</h2>
+          <main className="flex-1 md:ml-[280px] pb-8 px-4 md:px-8 flex items-center justify-center mb-[60px] md:mb-0">
+            <div className="bg-base-100 rounded-xl md:rounded-2xl p-6 md:p-8 max-w-md text-center">
+              <Info size={40} className="mx-auto mb-4 text-error" />
+              <h2 className="text-lg md:text-xl font-bold mb-2">Hive Not Found</h2>
               <p className="text-base-content/70 mb-4">The hive you're looking for doesn't exist or has been removed.</p>
               <Link href="/hives" className="btn btn-primary">
                 Explore Hives
@@ -523,12 +525,12 @@ const HiveFeed: React.FC<HiveFeedProps> = ({communityId, subPath}) => {
   return (
     <div className="min-h-screen flex flex-col bg-base-200">
       <Header />
-      <div className="flex mt-[70px]">
+      <div className="flex mt-[-54px] md:mt-[70px]">
         <Sidebar />
-        <main className="flex-1 ml-[280px] pb-8">
+        <main className="flex-1 md:ml-[280px] pb-8 mb-[60px] md:mb-0">
           {/* Hive Banner */}
           <div className="relative">
-            <div className="h-48 w-full bg-slate-700 relative overflow-hidden">
+            <div className="h-32 md:h-48 w-full bg-slate-700 relative overflow-hidden">
               {/* If banner image exists, show it */}
               {bannerImageUrl ? (
                 <img 
@@ -543,83 +545,176 @@ const HiveFeed: React.FC<HiveFeedProps> = ({communityId, subPath}) => {
             </div>
 
             {/* Hive info overlay */}
-            <div className="absolute -bottom-16 left-8 flex items-end">
-              <div className="w-24 h-24 rounded-full border-4 border-base-300 bg-white overflow-hidden">
+            <div className="absolute -bottom-12 md:-bottom-16 left-4 md:left-8 flex items-end">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-base-300 bg-white overflow-hidden">
                 <img 
                   src={profileImageUrl}
                   alt={hive.name} 
                   className="w-full h-full object-cover" 
                 />
               </div>
-              <div className="ml-4 mb-4">
-                <h1 className="text-2xl font-bold text-base-content">h/{hive.name}</h1>
-                <p className="text-gray-400 text-sm">{hive.isPrivate ? 'Private Hive' : 'Public Hive'}</p>
+              <div className="ml-3 md:ml-4 mb-2 md:mb-4">
+                <h1 className="text-xl md:text-2xl font-bold text-base-content">h/{hive.name}</h1>
+                <p className="text-gray-400 text-xs md:text-sm">{hive.isPrivate ? 'Private Hive' : 'Public Hive'}</p>
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="absolute right-8 bottom-4 flex items-center gap-2">
+            <div className="absolute right-4 md:right-8 bottom-4 flex items-center gap-1 md:gap-2">
               {hive.isCreator ? (
-                <Link href={`/hives/${hiveId}/edit`} className="bg-primary text-white hover:bg-primary-focus py-1 px-6 rounded-full font-medium">
-                  <Settings size={16} className="mr-2 inline" />
-                  Manage Hive
+                <Link href={`/hives/${hiveId}/edit`} className="bg-primary text-white hover:bg-primary-focus py-1 px-3 md:px-6 rounded-full text-sm md:text-base font-medium">
+                  <Settings size={14} className="md:mr-2 inline" />
+                  <span className="hidden md:inline">Manage Hive</span>
                 </Link>
               ) : (
                 <button
                   onClick={handleJoinHive}
                   disabled={joinLoading}
-                  className={`${hive.isMember ? 'bg-transparent border border-white text-base-content hover:bg-white/10' : 'bg-primary text-white hover:bg-primary-focus'} py-1 px-6 rounded-full font-medium`}
+                  className={`${hive.isMember ? 'bg-transparent border border-white text-base-content hover:bg-white/10' : 'bg-primary text-white hover:bg-primary-focus'} py-1 px-3 md:px-6 rounded-full text-sm md:text-base font-medium`}
                 >
                   {joinLoading ? (
                     <span className="flex items-center justify-center">
                       <span className="animate-spin h-4 w-4 border-2 border-t-transparent rounded-full mr-2"></span>
-                      {hive.isMember ? 'Leaving...' : 'Joining...'}
+                      <span className="hidden md:inline">{hive.isMember ? 'Leaving...' : 'Joining...'}</span>
                     </span>
                   ) : (
-                    hive.isMember ? 'Leave Hive' : 'Join Hive'
+                    hive.isMember ? (
+                      <>
+                        <span className="hidden md:inline">Leave Hive</span>
+                        <span className="inline md:hidden">Leave</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="hidden md:inline">Join Hive</span>
+                        <span className="inline md:hidden">Join</span>
+                      </>
+                    )
                   )}
                 </button>
               )}
               {!hive.isCreator && (
                 <button className="bg-transparent text-base-content border border-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10">
-                  <Bell size={16} />
+                  <Bell size={14} />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Content area */}
-          <div className="px-8 mt-20 flex gap-6">
-            {/* Posts Feed */}
-            <div className="flex-[2] max-w-[calc(100%-372px)]">
-              {/* Create Post / Filters Bar */}
-              <div className="bg-base-100 rounded-2xl mb-4 p-2 flex items-center justify-between">
-                <div className="flex">
+          {/* Mobile Hive Stats - Quick view */}
+          <div className="md:hidden px-4 mt-14 mb-4">
+            <div className="flex justify-between items-center">
+              <div className="flex gap-4 items-center">
+                <div className="text-center">
+                  <div className="text-base-content font-semibold">{hive.members?.length || 0}</div>
+                  <div className="text-gray-400 text-xs">Members</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-base-content font-semibold">{posts.length}</div>
+                  <div className="text-gray-400 text-xs">Posts</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-base-content font-semibold">{formatDate(hive.createdAt).split(', ')[1]}</div>
+                  <div className="text-gray-400 text-xs">Created</div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setShowMobileHiveInfo(!showMobileHiveInfo)} 
+                className="btn btn-sm btn-ghost"
+              >
+                {showMobileHiveInfo ? 'Hide Info' : 'More Info'}
+              </button>
+            </div>
+            
+            {/* Mobile Hive Details Dropdown */}
+            {showMobileHiveInfo && (
+              <div className="mt-4 bg-base-100 rounded-xl p-4 text-sm">
+                <div className="mb-3">
+                  <h3 className="text-base-content font-medium text-sm mb-1">Description</h3>
+                  <p className="text-gray-400">{hive.description}</p>
+                </div>
+                
+                {/* Creator info */}
+                <div className="mb-3">
+                  <h3 className="text-base-content font-medium text-sm mb-1">Creator</h3>
+                  <Link href={`/user/${hive.creator?._id}`} className="flex items-center gap-2 hover:bg-base-300/50 p-1 rounded-lg">
+                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+                      <Users size={12} />
+                    </div>
+                    <span className="text-sm">{hive.creator?.username || 'Unknown'}</span>
+                  </Link>
+                </div>
+                
+                {/* Rules section - if rules exist */}
+                {hive.rules && hive.rules.length > 0 && (
+                  <div className="mb-3">
+                    <h3 className="text-base-content font-medium text-sm mb-1">Hive Rules</h3>
+                    <div className="max-h-32 overflow-y-auto">
+                      {hive.rules.map((rule, index) => (
+                        <div key={index} className="text-sm mb-2">
+                          <p className="font-medium">{index + 1}. {rule.title}</p>
+                          {rule.description && (
+                            <p className="text-gray-400 text-xs">{rule.description}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action button for mobile */}
+                {!hive.isCreator && (
                   <button 
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'recent' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
+                    onClick={handleJoinHive}
+                    disabled={joinLoading}
+                    className={`w-full ${hive.isMember ? 'bg-base-300 hover:bg-base-100 text-base-content' : 'bg-primary hover:bg-primary-focus text-white'} font-medium py-2 rounded-full text-sm mt-2`}
+                  >
+                    {joinLoading ? 
+                      <span className="flex items-center justify-center">
+                        <span className="animate-spin h-4 w-4 border-2 border-t-transparent rounded-full mr-2"></span>
+                        {hive.isMember ? 'Leaving...' : 'Joining...'}
+                      </span>
+                      : 
+                      hive.isMember ? 'Leave Hive' : 'Join Hive'
+                    }
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Content area */}
+          <div className="px-4 md:px-8 mt-4 md:mt-20 flex flex-col md:flex-row gap-4 md:gap-6">
+            {/* Posts Feed */}
+            <div className="w-full md:flex-[2] md:max-w-[calc(100%-372px)]">
+              {/* Create Post / Filters Bar */}
+              <div className="bg-base-100 rounded-xl md:rounded-2xl mb-4 p-1.5 md:p-2 flex flex-wrap items-center justify-between">
+                <div className="flex overflow-x-auto scrollbar-hide">
+                  <button 
+                    className={`flex items-center gap-1 px-2 md:px-3 py-1.5 rounded-full text-xs md:text-sm whitespace-nowrap ${activeFilter === 'recent' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
                     onClick={() => setActiveFilter('recent')}
                   >
-                    <Clock size={14} />
+                    <Clock size={12} className="md:block" />
                     <span>Recent</span>
                   </button>
                   <button 
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'popular' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
+                    className={`flex items-center gap-1 px-2 md:px-3 py-1.5 rounded-full text-xs md:text-sm whitespace-nowrap ${activeFilter === 'popular' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
                     onClick={() => setActiveFilter('popular')}
                   >
-                    <Flame size={14} />
+                    <Flame size={12} className="md:block" />
                     <span>Popular</span>
                   </button>
                   <button 
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${activeFilter === 'top' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
+                    className={`flex items-center gap-1 px-2 md:px-3 py-1.5 rounded-full text-xs md:text-sm whitespace-nowrap ${activeFilter === 'top' ? 'bg-secondary text-white' : 'text-base-content hover:bg-primary/50'}`}
                     onClick={() => setActiveFilter('top')}
                   >
-                    <TrendingUp size={14} />
+                    <TrendingUp size={12} className="md:block" />
                     <span>Top</span>
                   </button>
                 </div>
                 
                 {hive.isMember && (
-                  <Link href="/posts/create" className="btn btn-sm btn-primary">
+                  <Link href="/posts/create" className="btn btn-xs md:btn-sm btn-primary mt-2 md:mt-0 w-full md:w-auto">
                     <PlusCircle size={14} className="mr-1" />
                     Create Post
                   </Link>
@@ -650,12 +745,12 @@ const HiveFeed: React.FC<HiveFeedProps> = ({communityId, subPath}) => {
                   ))}
                 </div>
               ) : (
-                <div className="bg-base-100 rounded-2xl p-6 text-center">
-                  <MessageSquare size={48} className="mx-auto mb-4 text-primary opacity-50" />
-                  <p className="text-gray-400 mb-4">No posts in this hive yet.</p>
+                <div className="bg-base-100 rounded-xl md:rounded-2xl p-4 md:p-6 text-center">
+                  <MessageSquare size={36} className="mx-auto mb-3 md:mb-4 text-primary opacity-50" />
+                  <p className="text-gray-400 text-sm md:text-base mb-3 md:mb-4">No posts in this hive yet.</p>
                   {hive.isMember && (
-                    <Link href="/posts/create" className="btn btn-primary">
-                      <PlusCircle size={16} className="mr-2" />
+                    <Link href="/posts/create" className="btn btn-xs md:btn-sm btn-primary">
+                      <PlusCircle size={14} className="mr-1 md:mr-2" />
                       Create the First Post
                     </Link>
                   )}

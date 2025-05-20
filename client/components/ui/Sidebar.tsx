@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
-  Menu
+  Menu,
+  Clock12
 } from "lucide-react";
 
 // Define a proper interface for community data
@@ -230,9 +231,9 @@ const Sidebar = () => {
             {(!collapsed || mobileOpen) && "Trending"}
           </Link>
           
-          <Link href="/new" className={`flex items-center ${collapsed && !mobileOpen ? 'justify-center' : 'justify-start'} ${collapsed && !mobileOpen ? 'w-10 h-10' : ''} btn btn-block gap-3 text-base-content text-lg hover:text-primary transition-colors ${collapsed && !mobileOpen ? 'hover:bg-white/5 rounded-lg p-2' : ''}`} onClick={() => setMobileOpen(false)}>
-            <PlusCircle size={collapsed && !mobileOpen ? 26 : 20} className={collapsed && !mobileOpen ? 'transition-all duration-300' : ''} />
-            {(!collapsed || mobileOpen) && "New"}
+          <Link href="/recent" className={`flex items-center ${collapsed && !mobileOpen ? 'justify-center' : 'justify-start'} ${collapsed && !mobileOpen ? 'w-10 h-10' : ''} btn btn-block gap-3 text-base-content text-lg hover:text-primary transition-colors ${collapsed && !mobileOpen ? 'hover:bg-white/5 rounded-lg p-2' : ''}`} onClick={() => setMobileOpen(false)}>
+            <Clock12 size={collapsed && !mobileOpen ? 26 : 20} className={collapsed && !mobileOpen ? 'transition-all duration-300' : ''} />
+            {(!collapsed || mobileOpen) && "Recent"}
           </Link>
         </nav>
 

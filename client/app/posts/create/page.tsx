@@ -21,7 +21,7 @@ export default function CreatePostPage() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
-  const [communities, setCommunities] = useState<{id: string, name: string}[]>([]);
+  const [communities, setCommunities] = useState<{_id: string, name: string}[]>([]);
   const [isLoadingCommunities, setIsLoadingCommunities] = useState(false);
   
   const MAX_IMAGES = 5;
@@ -43,7 +43,9 @@ export default function CreatePostPage() {
       
       if (response.ok) {
         const data = await response.json();
+        // Make sure we're processing the data correctly
         setCommunities(data);
+        console.log('Fetched communities:', data); // Debug log
       } else {
         console.error('Failed to fetch communities');
       }
@@ -344,7 +346,7 @@ export default function CreatePostPage() {
                       <div className="flex items-center gap-2">
                         <Hash size={18} className="text-primary" />
                         <span>{selectedCommunity ? 
-                          communities.find(c => c.id === selectedCommunity)?.name || 'Loading...' : 
+                          communities.find(c => c._id === selectedCommunity)?.name || 'Loading...' : 
                           'Select a community (optional)'}</span>
                       </div>
                       <ChevronDown size={18} />
@@ -363,8 +365,16 @@ export default function CreatePostPage() {
                         </li>
                       ) : communities.length > 0 ? (
                         communities.map(community => (
-                          <li key={community.id}>
-                            <button type="button" onClick={() => setSelectedCommunity(community.id)}>
+                          <li key={community._id}>
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                console.log('Selected community:', community); // Debug log
+                                setSelectedCommunity(community._id);
+                                setShowCommunityDropdown(false);
+                              }}
+                              className={selectedCommunity === community._id ? "active bg-primary/20" : ""}
+                            >
                               {community.name}
                             </button>
                           </li>
