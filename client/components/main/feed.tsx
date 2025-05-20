@@ -835,90 +835,96 @@ export default function MainPage() {  const { data: session } = useSession();
         
         {/* Create Story Modal */}
         {showCreateStory && (
-          <div className="fixed inset-0 z-[60] bg-black bg-opacity-80 flex items-center justify-center p-4">
-            <div className="relative max-w-md w-full bg-base-100 rounded-xl overflow-hidden">
-              <button 
-                onClick={() => setShowCreateStory(false)} 
-                className="absolute top-2 right-2 z-10 p-2 bg-base-200 rounded-full"
-              >
-                <XMarkIcon className="h-6 w-6 text-primary" />
-              </button>
-              
-              <div className="p-6">
-                <h3 className="font-bold text-xl mb-4">Create New Story</h3>
+          <>
+            {/* Backdrop for both modal and sidebar */}
+            <div className="fixed inset-0 z-[50]  bg-black/30" />
+            
+            {/* Modal */}
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
+              <div className="relative max-w-md w-full bg-base-100/95 backdrop-blur-md rounded-xl overflow-hidden shadow-2xl pointer-events-auto">
+                <button 
+                  onClick={() => setShowCreateStory(false)} 
+                  className="absolute top-2 right-2 z-10 p-2 bg-base-200/80 backdrop-blur-sm rounded-full hover:bg-base-200 transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6 text-primary" />
+                </button>
                 
-                <form onSubmit={handleCreateStory}>
-                  <div className="form-control mb-4">
-                    <label className="label">
-                      <span className="label-text">Title (required)</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      className="input input-bordered" 
-                      value={storyTitle}
-                      onChange={(e) => setStoryTitle(e.target.value)}
-                      placeholder="Enter a title for your story"
-                      maxLength={100}
-                      required
-                    />
-                  </div>
+                <div className="p-6">
+                  <h3 className="font-bold text-xl mb-4">Create New Story</h3>
                   
-                  <div className="form-control mb-4">
-                    <label className="label">
-                      <span className="label-text">Caption (optional)</span>
-                    </label>
-                    <textarea 
-                      className="textarea textarea-bordered" 
-                      value={storyCaption}
-                      onChange={(e) => setStoryCaption(e.target.value)}
-                      placeholder="Add a caption to your story"
-                      maxLength={250}
-                    />
-                  </div>
-                  
-                  <div className="form-control mb-6">
-                    <label className="label">
-                      <span className="label-text">Image (required)</span>
-                    </label>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="file-input file-input-bordered w-full" 
-                      onChange={(e) => setStoryImage(e.target.files?.[0] || null)}
-                      required
-                    />                    {storyImage && (
-                      <div className="mt-2 relative h-40 w-full">
-                        <Image 
-                          src={URL.createObjectURL(storyImage)} 
-                          alt="Story preview" 
-                          fill
-                          style={{ objectFit: 'contain' }}
-                          className="rounded-lg"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    <button 
-                      type="button" 
-                      className="btn btn-ghost mr-2" 
-                      onClick={() => setShowCreateStory(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="submit" 
-                      className="btn btn-primary" 
-                      disabled={storyUploadLoading || !storyImage || !storyTitle}
-                    >
-                      {storyUploadLoading ? <span className="loading loading-spinner loading-sm"></span> : 'Post Story'}
-                    </button>
-                  </div>
-                </form>
+                  <form onSubmit={handleCreateStory}>
+                    <div className="form-control mb-4">
+                      <label className="label">
+                        <span className="label-text">Title (required)</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        className="input input-bordered" 
+                        value={storyTitle}
+                        onChange={(e) => setStoryTitle(e.target.value)}
+                        placeholder="Enter a title for your story"
+                        maxLength={100}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="form-control mb-4">
+                      <label className="label">
+                        <span className="label-text">Caption (optional)</span>
+                      </label>
+                      <textarea 
+                        className="textarea textarea-bordered" 
+                        value={storyCaption}
+                        onChange={(e) => setStoryCaption(e.target.value)}
+                        placeholder="Add a caption to your story"
+                        maxLength={250}
+                      />
+                    </div>
+                    
+                    <div className="form-control mb-6">
+                      <label className="label">
+                        <span className="label-text">Image (required)</span>
+                      </label>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="file-input file-input-bordered w-full" 
+                        onChange={(e) => setStoryImage(e.target.files?.[0] || null)}
+                        required
+                      />                    {storyImage && (
+                        <div className="mt-2 relative h-40 w-full">
+                          <Image 
+                            src={URL.createObjectURL(storyImage)} 
+                            alt="Story preview" 
+                            fill
+                            style={{ objectFit: 'contain' }}
+                            className="rounded-lg"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <button 
+                        type="button" 
+                        className="btn btn-ghost mr-2" 
+                        onClick={() => setShowCreateStory(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit" 
+                        className="btn btn-primary" 
+                        disabled={storyUploadLoading || !storyImage || !storyTitle}
+                      >
+                        {storyUploadLoading ? <span className="loading loading-spinner loading-sm"></span> : 'Post Story'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </div>
-          </div>
+          </>
         )}
       </main>
     </div>
